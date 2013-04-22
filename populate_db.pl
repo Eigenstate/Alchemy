@@ -19,7 +19,7 @@ my @enzs = split '!', $resultString;
 # Put enzymes in a hash since they're not unique
 my %enzymes;
 foreach my $en (@enzs) {
-  $enzymes{$en} = 1;
+  $enzymes{$en} = 1 if (not exists $enzymes{$en});
 }
 
 # Loop through each enzyme and process all products

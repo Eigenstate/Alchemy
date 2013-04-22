@@ -1,8 +1,9 @@
 package Database;
 use strict;
 use warnings;
-use Exporter; # Makes perl modules a little easier
-use DBI;      # for mySQL
+use Exporter;  # Makes perl modules a little easier
+use DBI;       # for mySQL
+use Reaction;  # chemical reaction data structure
 
 our @ISA = qw( Exporter );
 
@@ -10,125 +11,213 @@ our @ISA = qw( Exporter );
 our @EXPORT_OK = qw();
 
 # Things that are exported by default
-our @EXPORT = qw(addEntry);
+our @EXPORT = qw(addEntry checkEnzyme);
 
 # Opens the database file at an indicated location
 sub new 
 {
   my $class = shift;
-  my $useBrenda = shift; # Say yes/no to continuing to populate db
   my $dbh = DBI->connect('dbi:mysql:alchemy', 'robin', 'testpw') or die "Connection error: $DBI::errstr\n";
+
   my $self = {
-    "dbh" => $dbh,
-    "brenda" => $useBrenda;
+    dbh => $dbh,
   };
 
-  my $test = "show tables;";
-  my $sth = $dbh->prepare($test);
-  $sth->execute() or die "Error $DBI::errstr\n";
-  while (my  @output = $sth->fetchrow_array()) {
-    print "@output\n";
-  }
-  $sth->finish();
   bless $self, $class;
   return $self;
 }
 
-# Takes 4 arguments: substrate, enzyme, product, rxn partners
-# These should be in the ligandstructureID format
-sub addEntry {
-  # Process command line arguments
-  die "Incorrect arguments to Database addEntry\n" if ( @_ != 4 );
-  my $substrate = $_[0];
-  my $enzyme = $_[1];
-  my $product = $_[2];
-  my @rxnpartners = @{$_[3]};
+# Checks if an enzyme is already in the database for a given organism
+# Returns 1 if yes, 0 if not
+sub checkEnzyme {
+  my $self = shift;
+  my $enzyme = shift;
+  my $organism = shift;
+  my @result = @{$self->executeSelectQuery("SELECT rxn_id FROM reactions WHERE enzyme='$enzyme' AND organism='$organism';")};
+  return 1 if (@result > 0);
+  return 0;
+}
 
-  $,=" "; $\="";
-  #open DB, ">>", $dbFile;
-  #print DB "$substrate+$enzyme+$product+@rxnpartners\n";
-  #close DB;
+# Adds an entry to the database given an ec number, an organism,
+# and a reaction equation
+sub addEntry {
+  my $self = shift;
+  # Process command line arguments
+  my $enzyme = shift;
+  my $organism = shift;
+  my $rxnpartners = shift;
+
+  # Check if the enzyme is in the enzyme database, if not, get its name and add it in 
+  my @result = @{$self->executeSelectQuery("SELECT name FROM enzymes WHERE ec_num='$enzyme';")};
+  if (@result == 0) {
+    my $test = $self->executeInsertQuery("INSERT INTO enzymes (ec_num) VALUES('$enzyme');", "enzymes");
+  }
+
+  # Break up the reaction into substrates and products
+  my @split = split / = /, $rxnpartners;
+  my @substrates = split / \+ /, $split[0];
+  my @products = split / \+ /, $split[1];
+  $,=" ";
+
+  # Add substrate/product pairs to the database
+  my $last = "NULL";
+  while (@substrates or @products) {
+    my $s = "NULL"; my $p = "NULL";
+    if (@substrates > 0) { $s = $self->addLigand(pop @substrates); }
+    if (@products > 0) { $p = $self->addLigand(pop @products); }
+    $last = $self->executeInsertQuery("INSERT INTO reactions (enzyme,substrate,product,partner_rxn,organism) VALUES('$enzyme','$s','$p',$last,'$organism');", "reactions");
+  }
+}
+
+# Adds a named ligand to the database if it's not already there. Otherwise,
+# does nothing. Returns the structure id of the ligand
+sub addLigand {
+  my $self = shift;
+  my $ligand = shift;
+  $ligand = quotemeta $ligand;
+  
+  # Check if already in database
+  my @result = @{$self->executeSelectQuery("SELECT idx FROM molecules WHERE name='$ligand';")};
+  $,=" ";
+  return $result[0][0] if (@result != 0); # Ligand is 1st row, only field returned
+
+  # Add to database if it doesn't exist yet
+  my $id = SOAP::Lite
+   -> uri('http://www.brenda-enzymes.info/soap2')
+   -> proxy('http://www.brenda-enzymes.info/soap2/brenda_server.php')
+   -> getLigandStructureIdByCompoundName("$ligand")
+   -> result;
+  if (! length $id) { $id = "NULL"; } # Not a defined structure ID in brenda for some reason
+  
+  my $idx = $self->executeInsertQuery("INSERT INTO molecules (structure_id,name) VALUES('$id','$ligand');","molecules");
+  return $idx;
 }
 
 # Finds all enzymes that use a substrate, in the database
 # Takes one argument, the substrate, and returns an array with enzymes
 sub findEnzymeBySubstrate {
-  my $substrate = $_[0] or die "Incorrect arguments to database lookup\n";
+  my $self = shift;
+  my $substrate = shift or die "Incorrect arguments to database lookup\n";
+  $substrate = quotemeta $substrate;
   
   # Create and run the query on the database
-  my $query = "select enzyme from reactions where substrate=\"$substrate\";";
-  my $sth = $self{dbh}->prepare($query);
-  $sth->execute() or die "Database error: $DBI::errstr\n";
-  
-  # Process and return the result of the database query
-  my @enzymes; my %dbenzymes;
-  while (my $output = $sth->fetch()) {
-		push @enzymes, $output; # TODO correct?
-    $dbenzymes{%output} = 1;
-  }
-  return @enzymes if exists $self{brenda} and $self{brenda} != 0;
-  
-  # Run BRENDA query to pull out enzymes that might not be found if desired
-  # TODO: What is the input to this?
-  my %brendaenzymes; # Hash for uniqueness
-	my $rawECs = SOAP::Lite
- 	 -> uri('http://www.brenda-enzymes.info/soap2')
- 	 -> proxy('http://www.brenda-enzymes.info/soap2/brenda_server.php')
- 	 -> getEcNumbersFromSubstrate() 
- 	 -> result;
-my @ECs = split '!', $rawECs;
-
-
-  # Add enzymes that aren't yet in the local database to the local database
-  foreach my $enzyme (%brendaenzymes) {
-    if exists $enzymes 
+  my $query = "SELECT enzyme FROM reactions WHERE substrate='$substrate';";
+  my @enzymes= @{$self->executeSelectQuery($query)};
   return @enzymes; 
+}
+
+# Executes a SQL query on the database and returns the result
+# This is to be used for select queries
+# Argument is the SQL query to run, returns string result or dies with error
+# If multiple rows are returned, an array is returned
+sub executeSelectQuery {
+  my ($self, $query) = @_;
+  my $sth = $self->{dbh}->prepare("$query");
+  $sth->execute() or die "Database error: $DBI::errstr\n\nQuery was '$query'";
+  my $result = $sth->fetchall_arrayref();
+  $sth->finish();
+  return $result;
+}
+
+# Executes a SQL insert query on the database and returns the row ID inserted
+# This is to be used for insert queries
+# Argument is the SQL query to run and the table, returns row id or dies with error
+sub executeInsertQuery {
+  my $self = shift;
+  my $query = shift or die "No query specified in executeInsertQuery!\n";
+  my $table = shift or die "No table specified in executeInsertQuery!\n";
+  $self->{dbh}->do("$query") or die "Database error: $DBI::errstr\n";
+  return $self->{dbh}->last_insert_id("", "", "$table", "");
 }
 
 # Finds all products an enzyme creates, in the database
 sub findEnzymeByProduct {
+  my $self = shift;
 }
 
-# Adds an enzyme to the database given its EC number. Adds all reactions
-# and their associated partners. 
-sub addEnzyme {
-  # Get all reactions performed by the input EC enzyme
-  my $ec = shift or die "No EC number specified in Database addEnzyme\n";
-  my $rawProducts = SOAP::Lite
-   -> uri('http://www.brenda-enzymes.info/soap2')
-   -> proxy('http://www.brenda-enzymes.info/soap2/brenda_server.php')
-   -> getProduct("ecNumber*$ec#organism*Homo sapiens") # human enzymes only for now
-   -> result;
-    
-  # output format ecnum*string#product*string#partners*string#organism*string#ligandstructurid*string
-  my @results = split "!", $rawProducts;
-  foreach my $res (@results) {
-    if ($res =~ /.*product\*(.*)#reactionPartners\*(.*)#organism.*#ligandStructureId\*(.*)/) {
-      my $prod = $1;
-      my $rxnp = $2;
-      my $id = $3;
+# Returns a hash reference to all ligands
+# Key = index, value = ligand name
+sub getLigands {
+  my $self = shift;
 
-      print "product $prod with $rxnp id $id\n";
-      # Split up the reaction: a + b -> c + d
-      my @split = split '->', $rxnp;
-      my @substrates = split '+', $split[0];
-      my @products = split '+', $split[1];
-      
-      # Insert into the database until no partner reactions left
-      while (@substrates and @products) {
-        my ($s,$p) = (pop @substrates, pop @products); # todo-nonempty
-				my $query = "insert into... $s $p";
-        my $sth = $self{dbh}->prepare($query);
-  			$sth->execute() or die "Database error: $DBI::errstr\n";
-      }
-
-     	# Check if substrates/products are in database
-     
- 		 	# If not, look up ligandstructureID and add to molecule database
-       
-      # Get enzyme common name and add to enzyme database
-    }
+  # Get select query from database
+  my $query = "SELECT * FROM molecules;";
+  my @data = @{$self->executeSelectQuery($query)};
+  
+  # Process into a hash
+  my $ligands = ();
+  foreach my $row (@data) {
+    $ligands->{@{$row}[0]} = @{$row}[2];
   }
+  return $ligands;
 }
 
-1;
+# Returns a hash reference to all reactions
+# Key = start, next key = edge, value = enzyme
+sub getReactions {
+  my $self = shift;
+  my $q = shift;
+
+  # Generate and get initial select query from database
+  # We will handle results of partner reactions specially later
+  my $query = "SELECT * FROM reactions WHERE ";
+  while (@{$q}) {
+    my $molecule = pop @{$q};
+    $query .= "substrate=$molecule or product=$molecule ";
+    $query .= "or " if (@{$q});
+  }
+  $query .= ";";
+  my @initreactions = @{$self->selectAsReaction($query)};
+
+  # Get the partner reactions of each reaction
+  my @procrxns;
+  foreach my $rxn (@initreactions) {
+    my @tomerge;
+    
+    # Query backwards first
+    my @blob = ( $rxn );
+    while (@blob) {
+      my $r = pop @blob;
+      print "looking for partners with id $r->{id}\n";
+      my $queryback = "SELECT * FROM reactions where partner_rxn='$r->{id}';";
+
+      push @blob, @{$self->selectAsReaction($queryback)};
+      push @tomerge, $r;
+    }
+
+    # Now query forwards
+    @blob = ( $rxn );
+    while (@blob) {
+      my $r = pop @blob;
+      if ($r->{partner} != 0) {
+        print "querying id $r->{id} for partner $r->{partner}\n";
+        my $queryforw = "SELECT * FROM reactions where rxn_id='$r->{partner}';";
+        push @blob, @{$self->selectAsReaction($queryforw)};
+      }
+      push @tomerge, $r;
+    }
+    push @procrxns, @{Reaction->merge(\@tomerge)};
+  }
+  return \@procrxns;
+}
+
+# Returns a reaction data structure containing all reactions
+# returned by an input query
+sub selectAsReaction {
+  my $self = shift;
+  my $query = shift;
+
+  my @reactions;
+  my @data = @{ $self->executeSelectQuery($query) };
+  foreach my $row (@data) {
+    @{$row}[4] = 0 if (not defined @{$row}[4] or @{$row}[4] == "");
+    push @reactions, Reaction->new(
+                      substrate => @{$row}[2],
+                      product   => @{$row}[3],
+                      enzyme    => @{$row}[1],
+                      id        => @{$row}[0],
+                      partner   => @{$row}[4],
+                    );
+  }
+  return \@reactions;
+}
