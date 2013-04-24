@@ -194,7 +194,6 @@ sub getReactions {
         my $queryforw = "SELECT * FROM reactions where rxn_id='$r->{partner}';";
         push @blob, @{$self->selectAsReaction($queryforw)};
       }
-      push @tomerge, $r;
     }
     push @procrxns, @{Reaction->merge(\@tomerge)};
   }

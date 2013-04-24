@@ -34,20 +34,28 @@ sub merge
 {
   my $self = shift;
   my $mer = shift;
-  my @merge = @{$mer};
-  my @merge2 = ( @merge );
- 
-  my $subs = my $prods = ""; 
-  while (@merge) {
-    my $rxn = pop @merge;
-    $subs .= "$rxn->{substrate}";
-    $prods .= "$rxn->{product}";
-    if (@merge) {
-      $subs .= " + ";
-      $prods .= " + ";
-    }
+  my @merge= @{$mer};
+
+  # Find all non-null substrates and products
+  my @s; my @p; 
+  foreach my $rxn (@merge) {
+    push @s, $rxn->{substrate} if ($rxn->{substrate} ne "NULL");
+    push @p, $rxn->{product} if ($rxn->{product} ne "NULL");
   }
- 
+
+  # Create the substrate merged name
+  my $subs = "";
+  for (my $i=0; $i<(@s-1); ++$i) {
+    $subs .= "$s[$i] + ";
+  }
+  $subs .= $s[scalar(@s)-1];
+
+  # Create the product merged name
+  my $prods = "";
+  for (my $i=0; $i<(@p-1); ++$i) {
+    $prods.= "$p[$i] + ";
+  }
+  $prods.= $p[scalar(@p)-1];
   # Create the merged reaction 
   my @reactions; 
   push @reactions, Reaction->new(
@@ -59,21 +67,27 @@ sub merge
                   );
 
   # Create "free" reactions to the merged reaction
-  foreach my $rxn (@merge2) {
-    push @reactions, Reaction->new (
-                      substrate => $rxn->{substrate},
-                      product   => $subs,
-                      enzyme    => 0,
-                      id        => 0,
-                      partner   => 0,
-                    );
-    push @reactions, Reaction->new (
-                      substrate => $prods,
-                      product   => $rxn->{product},
-                      enzyme    => 0,
-                      id        => 0,
-                      partner   => 0,
-                    );
+  if (@s > 1) {
+    foreach my $r (@s) {
+     push @reactions, Reaction->new (
+                        substrate => $r,
+                        product   => $subs,
+                        enzyme    => 0,
+                        id        => 0,
+                        partner   => 0,
+                      );
+    }
+  }
+  if (@p > 1) {
+    foreach my $r (@p) {
+     push @reactions, Reaction->new (
+                        substrate => $prods,
+                        product   => $r,
+                        enzyme    => 0,
+                        id        => 0,
+                        partner   => 0,
+                      );
+    }
   }
   return \@reactions;
 }

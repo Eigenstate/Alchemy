@@ -47,31 +47,33 @@ sub drawGraph {
 
   # Add all the edges and nodes at once
   my %addednodes;
-  print "Reading in edges\n";
+  my $addededges;
+  print "Reading in data for graph\n";
   foreach my $rxn (@{$self->{edges}}) {
     # Add substrate node
     if (not exists $addednodes{ $rxn->{substrate} }) {
-      if ($rxn->{enzyme}) {
-        $graph->add_node( $self->{nodes}->{ $rxn->{substrate} });
-      } else {
-        $graph->add_node( $rxn->{substrate} );
+      if (not exists $self->{nodes}->{ $rxn->{substrate} }) {  # this is a merged node, add it
+        $self->{nodes}->{ $rxn->{substrate} } = $rxn->{substrate};
       }
+      $graph->add_node( $self->{nodes}->{ $rxn->{substrate} });
+      print "added node $self->{nodes}->{ $rxn->{substrate} } of $rxn->{substrate}\n";
       $addednodes{ $rxn->{substrate} } = 1;
     }
 
     # Add product node
     if ( not exists $addednodes{ $rxn->{product} }) {
-      if ($rxn->{enzyme}) { # not a merged node
-        $graph->add_node( $self->{nodes}->{ $rxn->{product} } );
-      } else {
-        $graph->add_node( $rxn->{product} );
-      }
+      if (not exists $self->{nodes}->{ $rxn->{product} }) {  # this is a merged node, add it
+        $self->{nodes}->{ $rxn->{product} } = $rxn->{product};
+      } 
+      $graph->add_node( $self->{nodes}->{ $rxn->{product} } );
       $addednodes{ $rxn->{product} } = 1;
     }
 
     # Add reaction edge
-    $graph->add_edge( $rxn->{substrate} => $rxn->{product},
-                      label => $rxn->{enzyme} );
+    if (not exists $addededges->{ $self->{nodes}->{$rxn->{substrate}} }->{ $self->{nodes}->{$rxn->{product}} }) {
+      $graph->add_edge( $self->{nodes}->{ $rxn->{substrate} } => $self->{nodes}->{ $rxn->{product} }, label => $rxn->{enzyme} );
+      $addededges->{ $self->{nodes}->{$rxn->{substrate}} }->{ $self->{nodes}->{$rxn->{product}} } = 1;
+    }
   }
 
   # Output a graph
