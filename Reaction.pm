@@ -1,3 +1,21 @@
+#
+#    Alchemy, a metabolic pathway generator 
+#    Copyright (C) 2013  Robin Betz
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 package Reaction;
 use strict;
 use warnings;
@@ -35,6 +53,7 @@ sub merge
   my $self = shift;
   my $mer = shift;
   my @merge= @{$mer};
+  die "Trying to merge only 1 node!\n" if (@merge == 1);
 
   # Find all non-null substrates and products
   my @s; my @p; 
@@ -42,20 +61,26 @@ sub merge
     push @s, $rxn->{substrate} if ($rxn->{substrate} ne "NULL");
     push @p, $rxn->{product} if ($rxn->{product} ne "NULL");
   }
+  $,=' ';
 
   # Create the substrate merged name
   my $subs = "";
-  for (my $i=0; $i<(@s-1); ++$i) {
-    $subs .= "$s[$i] + ";
+  if (@s) {
+    for (my $i=0; $i<(@s-1); ++$i) {
+      $subs .= "$s[$i] + ";
+    }
+    $subs .= $s[scalar(@s)-1];
   }
-  $subs .= $s[scalar(@s)-1];
 
   # Create the product merged name
   my $prods = "";
-  for (my $i=0; $i<(@p-1); ++$i) {
-    $prods.= "$p[$i] + ";
+  if (@p) {
+    for (my $i=0; $i<(@p-1); ++$i) {
+      $prods.= "$p[$i] + ";
+    }
+    $prods .= $p[scalar(@p)-1];
   }
-  $prods.= $p[scalar(@p)-1];
+
   # Create the merged reaction 
   my @reactions; 
   push @reactions, Reaction->new(

@@ -4,6 +4,8 @@ use warnings;
 use strict;
 
 use Database;
+print "Deprecated program\n";
+exit 0;
 
 # Check if command line arguments have been given, otherwise
 # prompt user for starting product and desired product
@@ -22,7 +24,6 @@ if ( @ARGV == 0 ) {
 
 # Open the database
 my $Database = new Database();
-exit 0;
 
 $\ = $, = "\n"; # Makes print nicer
 # Get all enzymes that use this as a substrate
