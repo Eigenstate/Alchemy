@@ -35,14 +35,16 @@ sub new {
   
   my $db = Database->new();
   my $nodes = ();  # key=number, value=name of ligand
-  my $edges = ();  # key=start, value=end, value=name of enzyme
+  my $edges = ();  # array of reactions
   my $readin = (); # key=node, value=1 for uniqueness checks
+  my $uedges = ();  # key=start, key=end, value=name of enzyme
   my $self = {
     db => $db,
     edges => $edges,
     nodes => $nodes,
     query => $molecules,
     readin => $readin,
+    uedges => $uedges,
   };
    
   $self->{nodes} = $self->{db}->getLigands();
@@ -61,24 +63,20 @@ sub readData
   print "Reading in data for node @$query\n";
   my @edge = @{$self->{db}->getReactions($query)};                # Get edges
   foreach my $cmp (@edge) {                                         
-    my $unique = 1;
-    
-#    foreach my $rxn (@{$self->{edges}}) {                         # Check for uniqueness
-#      if ( $rxn->{substrate} eq $cmp->{substrate} && 
-#          $rxn->{product}   eq $cmp->{product}   &&
-#           $rxn->{enzyme}    eq $cmp->{enzyme} ) {
-#        $unique = 0;
-#        last;
-#    } }
-#    if ($unique) {
+    if (not exists $self->{uedges}->{ $cmp->{substrate} }->{ $cmp->{product} }) {
+      $self->{uedges}->{ $cmp->{substrate} }->{ $cmp->{product} } = 1;
       push @{$self->{edges}}, $cmp;                               # Add this reaction to edges
       push @added, $cmp;
 
       if (not exists $self->{nodes}->{ $cmp->{substrate} }) {     # Add compound nodes
-        $self->{nodes}->{ $cmp->{substrate} } = $cmp->{substrate}; }
+        $self->{nodes}->{ $cmp->{substrate} } = $cmp->{substrate};
+        $self->{dist}->{ $cmp->{substrate} } = 1E100;
+      }
       if (not exists $self->{nodes}->{ $cmp->{product} }) {
-        $self->{nodes}->{ $cmp->{product} } = $cmp->{product}; }
-#    }
+        $self->{nodes}->{ $cmp->{product} } = $cmp->{product};
+        $self->{dist}->{ $cmp->{product} } = 1E100;
+      }
+    }
   }
   return \@added;
   # Remove duplicate edges - no longer used because edge adding already checks for duplicates
@@ -230,11 +228,9 @@ sub shortestPath
         $u = $v;
     } }
     delete $Queue{$u};                               # Pop off the queue
-    print "min is $u value $min\n";
     
     # Check for ending conditions
     last if ( $u eq $end );                          # Found the target 
-    die "Inconsistency\n" if ($min != $self->{dist}->{$u});
     if ($self->{dist}->{$u} == $inf) {                         # Target unreachable
       print "No path found\n";
       return;
@@ -244,6 +240,7 @@ sub shortestPath
     foreach my $rxn (@{$self->{edges}}) {
       if ($rxn->{substrate} eq $u) {
         my $v = $rxn->{product};
+        next if (index($u,'+')!=-1 and index($v,'+')==-1);  # Ignore edges to non-compound nodes 
 
         # Add child nodes to internal memory if not there already
         if (index($v, '+') == -1) {
@@ -256,8 +253,7 @@ sub shortestPath
         
         # Update distances
         my $alt = $self->{dist}->{$u} + 1;                     # Here, dist u,v=1, but this may change with KI and stuff.
-        $alt = $self->{dist}->{$u} if ($rxn->{enzyme} eq "0"); # free transition
-        print "Dist u is $self->{dist}->{$u} v is $self->{dist}->{$v} recalc is $alt enzymes is $rxn->{enzyme}\n";
+        $alt = $self->{dist}->{$u} if ($rxn->{enzyme} eq "0"); # free transitions penalized
         if ($alt < $self->{dist}->{$v}) {
           $self->{dist}->{$v} = $alt;
           $previous{$v} = $u;
