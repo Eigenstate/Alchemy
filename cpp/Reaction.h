@@ -15,27 +15,27 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <string>
+#include <list>
+#include <vector>
 
-class Reaction
-{
-  int substrate;
-  int product;
-  std::string enzyme;
-  int id;
-  int partner;
-  
+using namespace std;
+
+class Reaction {
+
 public:
-  Reaction(const int &sub, const int &prod, const std::string& en, const int &id, const int &partner=0);
-
+  Reaction(const int &sub, const int &prod, const std::string& en, const int &i, const int &partner, const bool &merged=false);
+  Reaction(const list<Reaction*> merge);
+  void print();
+  string getProduct();
+  string getSubstrate();
+  string getEnzyme();
+  int getPartner();
+  int getID();
+  list<Reaction*> queryBack(vector<Reactions>* l);
+  list<Reaction*> queryForward(vector<Reactions>* l);
 };
 
-Reaction::Reaction(const int &sub, const int &prod, const std::string& en, const int &id, const int &partner)
-      : substrate(sub), 
-        product(prod), 
-        enzyme(en), 
-        id(id), 
-        partner(partner)
-        {}
+
+
 

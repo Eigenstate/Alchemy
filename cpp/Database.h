@@ -22,7 +22,9 @@
 #include <cppconn/statement.h>
 #include <string>
 #include <vector>
+#include "Reaction.h"
 using namespace std;
+
 class Database
 {
   sql::Driver *driver;
@@ -31,7 +33,7 @@ class Database
 
 public:
   Database(const string &schem="alchemy");
-  vector<string> Query(const string &q, const string &id);
+  vector<Reaction> getReactions();
 
 private:
   void handleError(const sql::SQLException &e);

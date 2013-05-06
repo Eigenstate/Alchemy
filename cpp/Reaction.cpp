@@ -15,55 +15,75 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-/*
-sub getReactions {
-  my $self = shift;
-  my $inpq = shift;
-  my @q = @$inpq; 
+#include <iostream>
+#include "Reaction.h"
+using namespace std;
 
-  # Generate and get initial select query from database
-  # We will handle results of partner reactions specially later
-  my $query = "SELECT * FROM reactions";
-  if (@q) {
-    $query .= " WHERE ";
-    while (@q) {
-      my $molecule = pop @q;
-      $query .= "substrate=$molecule or product=$molecule ";
-      $query .= "or " if (@q);
-    } 
+Reaction::Reaction(const int &sub, const int &prod, const std::string& en, const int &i, const int &partner)
+      : substrate(sub), 
+        product(prod), 
+        enzyme(en), 
+        id(i), 
+        partner(partner)
+        {}
+
+Reaction::Reaction(const list<Reaction*> merge)
+{
+  if (merge.size() == 1) {
+    substrate = list[0]->getSubstrate();
+    product = list[0]->getProduct();
+    enzyme = list[0]->getEnzyme();
+    id = list[0]->getID();
+    partner = 0;
   } else {
-    print "Defaulting to reading in all reactions\n";
+    substrate = product = "";
+    for (int i=0; i<merge.size()-1; ++i) {
+      substrate += merge[i]->getSubstrate() + "+";
+      product += merge[i]->getProduct() + "+";
+    }
   }
-  $query .= ";";
-  my @initreactions = @{$self->selectAsReaction($query)};
+}
 
-  # Get the partner reactions of each reaction
-  my @procrxns;
-  foreach my $rxn (@initreactions) {
-    my @tomerge;
-    
-    # Query backwards first
-    my @blob = ( $rxn );
-    while (@blob) {
-      my $r = pop @blob;
-      my $queryback = "SELECT * FROM reactions where partner_rxn='$r->{id}';";
+void Reaction::print()
+{
+  cout << substrate << " -> " << product << " by " << enzyme << endl;
+}
 
-      push @blob, @{$self->selectAsReaction($queryback)};
-      push @tomerge, $r;
-    }
+string Reaction::getProduct()
+{ return product; }
 
-    # Now query forwards
-    @blob = ( $rxn );
-    while (@blob) {
-      my $r = pop @blob;
-      if ($r->{partner} != 0) {
-        my $queryforw = "SELECT * FROM reactions where rxn_id='$r->{partner}';";
-        push @blob, @{$self->selectAsReaction($queryforw)};
-      }
-      push @tomerge, $r if ($r != $rxn);
-    }
-    if (@tomerge == 1) {
-      push @procrxns, @tomerge;
-    } else {
-      push @procrxns, @{Reaction->merge(\@tomerge)};
-      */
+string Reaction::getEnzyme()
+{ return enzyme; }
+
+int Reaction::getSubstrate()
+{ return substrate; }
+
+int Reaction::getPartner()
+{ return partner; }
+
+int Reaction::getID()
+{ return id; }
+
+list<Reaction*> Reaction::queryBack(vector<Reactions>* l)
+{
+  list<Reaction*> result;
+  for (int i=0; i<l.size(); ++i) {
+    if (getID() == l[i].getPartner())
+      result[0].push_back(&(l[i]));
+  }
+  return result;
+}
+
+list<Reaction*> Reaction::queryForward(vector<Reactions>* l)
+{
+  list<Reaction*> result;
+  for (int i-0; i<l.size(); ++i) {
+    if (l[i].getID() == getPatner())
+      result.push_back(&(l[i]));
+  }
+  return result;
+}
+
+
+
+

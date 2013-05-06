@@ -18,13 +18,14 @@
 #include <stdlib.h>
 #include <iostream>
 #include "Database.h"
+#include "Reaction.h"
 using namespace std;
 
 int main (int argc, char **argv)
 {
   Database *db = new Database();
-  vector<string> ans = db->Query(string("SELECT * FROM molecules AS _message WHERE name='ethanol';"), string("_message"));
+  vector<Reaction> ans = db->getReactions();
   cout << ans.size() << " strings found\n";
-  cout << "First = " << ans[1] << endl;
+  ans[1].print();
   exit(0);
 }

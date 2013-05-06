@@ -62,14 +62,19 @@ void Database::handleError(const sql::SQLException &e)
   exit(1);
 }
 
-vector<Reaction> Database::getReaction(const string &q, const string &id)
+vector<Reaction> Database::getReactions()
 {
-  vector<Reaction> result;
+  vector<Reaction> rawresults;
   try {
     sql::Statement *stmt = getConnection()->createStatement();
-    sql::ResultSet *res = stmt->executeQuery("SELECT * FROM molecules;");
+    sql::ResultSet *res = stmt->executeQuery("SELECT rxn_id,substrate,product,enzyme,partner_rxn FROM reactions;");
     while (res->next()) {
-      result.push_back( res->getString("name") );
+    int rid = atoi(res->getString("rxn_id").c_str());
+    string sub = res->getString("substrate");
+    string pro = res->getString("product");
+    string enz = res->getString("enzyme");
+    int pid = atoi(res->getString("partner_rxn").c_str());
+      rawresults.push_back( Reaction(sub, pro, enz, rid, pid) );
     }
     delete res;
     delete stmt;
@@ -77,5 +82,32 @@ vector<Reaction> Database::getReaction(const string &q, const string &id)
     cout << "Error querying database\n";
     handleError(e);
   }
-  return result;
+
+  // Find partner reactions
+  vector<Reaction> procresults;
+  while ( rawresults.size() ) {
+    Reaction rxn = rawresults.pop_back();
+    list<Reaction*> tomerge;
+
+    // Query backwards
+    list<Reaction*> back;
+    back.push_back(&rxn);
+    while ( back.size() ) {
+      Reaction *r = back.pop_front();
+      back.merge(r.queryBack(&rawresults));
+      tomerge.push_back(&r)
+    }
+
+    // Query forwards
+    list<Reaction*> forw;
+    forw.push_back(&rxn);
+    while ( forw.size() ) {
+      Reaction *r = forw.pop_front();
+      forw.merge(r.queryForward(&rawresults));
+      if (&r != $rxn) 
+        tomerge.push_back(&r);
+    }
+  procresults.push_back(new Reaction(merge));
+  }
+  return procresults;
 }
