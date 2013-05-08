@@ -22,20 +22,23 @@
 using namespace std;
 
 class Reaction {
+  string substrate;
+  string product;
+  string enzyme;
+  int id;
+  int partner;
+  bool merged;
 
 public:
-  Reaction(const int &sub, const int &prod, const std::string& en, const int &i, const int &partner, const bool &merged=false);
-  Reaction(const list<Reaction*> merge);
+  Reaction(const string &sub, const string &prod, const std::string& en, const int &i, const int &p, const bool &m=false);
+  Reaction(list<Reaction*> merge);
   void print();
   string getProduct();
   string getSubstrate();
   string getEnzyme();
   int getPartner();
   int getID();
-  list<Reaction*> queryBack(vector<Reactions>* l);
-  list<Reaction*> queryForward(vector<Reactions>* l);
+  bool isMerged();
+  list<Reaction*> queryBack(vector<Reaction*>* l);
+  list<Reaction*> queryForward(vector<Reaction*>* l);
 };
-
-
-
-

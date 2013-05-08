@@ -24,8 +24,8 @@ using namespace std;
 int main (int argc, char **argv)
 {
   Database *db = new Database();
-  vector<Reaction> ans = db->getReactions();
+  vector<Reaction*> ans = db->getReactions();
   cout << ans.size() << " strings found\n";
-  ans[1].print();
+  ans[1]->print();
   exit(0);
 }
