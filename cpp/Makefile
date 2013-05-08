@@ -16,18 +16,30 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 CC = g++
-CFLAGS= -O3 -Wall -ggdb
+CFLAGS= -O3 -Wall -fopenmp
 LINKS= -lmysqlcppconn
 
 HEADERS = Database.h Reaction.h
-SOURCE = Alchemy.cpp Database.cpp Reaction.cpp
-OBJECTS = Alchemy.o Database.o Reaction.o
+SOURCE = Alchemy.cpp Database.cpp Reaction.cpp RawReaction.cpp
+OBJECTS = Alchemy.o Database.o Reaction.o RawReaction.o
 
 all: alchemy
 
-alchemy:	$(OBJECTS)
+alchemy: $(OBJECTS)
 	$(CC) -o alchemy $(OBJECTS) $(LINKS)
-	@(./alchemy)
+#	@(./alchemy)
+
+Database.o: $(HEADERS)
+	$(CC) $(CFLAGS) -c Database.cpp
+
+Reaction.o: $(HEADERS)
+	$(CC) $(CFLAGS) -c Reaction.cpp
+
+RawReaction.o: $(HEADERS)
+	$(CC) $(CFLAGS) -c RawReaction.cpp
+
+Alchemy.o: $(HEADERS)
+	$(CC) $(CFLAGS) -c Alchemy.cpp
 
 clean:
 	/bin/rm -f $(OBJECTS) alchemy

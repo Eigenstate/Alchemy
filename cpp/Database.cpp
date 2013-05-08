@@ -24,6 +24,7 @@
 #include <string>
 #include "Database.h"
 #include "Reaction.h"
+#include "RawReaction.h"
 using namespace std;
 
 Database::Database(const string &schem)
@@ -62,9 +63,9 @@ void Database::handleError(const sql::SQLException &e)
   exit(1);
 }
 
-vector<Reaction*> Database::getReactions()
+vector<RawReaction*> Database::getRawReactions()
 {
-  vector<Reaction*> rawresults;
+  vector<RawReaction*> rawresults;
   try {
     sql::Statement *stmt = getConnection()->createStatement();
     sql::ResultSet *res = stmt->executeQuery("SELECT rxn_id,substrate,product,enzyme,partner_rxn FROM raw_reactions;");
@@ -74,7 +75,7 @@ vector<Reaction*> Database::getReactions()
     string pro = res->getString("product");
     string enz = res->getString("enzyme");
     int pid = atoi(res->getString("partner_rxn").c_str());
-      rawresults.push_back( new Reaction(sub, pro, enz, rid, pid) );
+      rawresults.push_back( new RawReaction(sub, pro, enz, rid, pid) );
     }
     delete res;
     delete stmt;
@@ -84,43 +85,44 @@ vector<Reaction*> Database::getReactions()
   }
 
   // Find partner reactions
-  vector<Reaction*> procresults;
+  vector<RawReaction*> procresults;
   while ( rawresults.size() ) {
-    Reaction *rxn = rawresults.back();
+    RawReaction *rxn = rawresults.back();
     rawresults.pop_back();
-    list<Reaction*> tomerge;
+    list<RawReaction*> tomerge;
 
     // Query backwards
-    list<Reaction*> back;
+    list<RawReaction*> back;
     back.push_back(rxn);
     while ( back.size() ) {
-      Reaction *r = back.front();
+      RawReaction *r = back.front();
       back.pop_front();
-      list<Reaction*> q = r->queryBack(&rawresults);
+      list<RawReaction*> q = r->queryBack(&rawresults);
       back.merge( q );
       tomerge.push_back(r);
     }
 
     // Query forwards
-    list<Reaction*> forw;
+    list<RawReaction*> forw;
     forw.push_back(rxn);
     while ( forw.size() ) {
-      Reaction *r = forw.front();
+      RawReaction *r = forw.front();
       forw.pop_front();
-      list<Reaction*> q = r->queryForward(&rawresults);
+      list<RawReaction*> q = r->queryForward(&rawresults);
       forw.merge( q );
       if (r != rxn) 
         tomerge.push_back(r);
     }
-    Reaction *n = new Reaction(tomerge);
-    addProcessedReaction(n); // TODO: This is temporary database fix
+    RawReaction *n = new RawReaction(tomerge);
     procresults.push_back(n);
   }
   return procresults;
 }
 
-void Database::addProcessedReaction( Reaction* rxn )
+void Database::addProcessedReaction( RawReaction* rxn )
 {
+  cout << "You are trying to add rxn to database... NO!";
+  return; // DO not run this
   string command = "INSERT IGNORE INTO reactions(enzyme,substrate,product,organism) VALUES ('";
   command += rxn->getEnzyme() + "','" + rxn->getSubstrate() + "','" + rxn->getProduct() + "','homo sapiens');";
   try {
@@ -132,4 +134,26 @@ void Database::addProcessedReaction( Reaction* rxn )
     cout << "Reaction was: "; rxn->print();
     handleError(e);
   }
+}
+
+vector<Reaction*> Database::getReactions()
+{
+  vector<Reaction*> results;
+  try {
+    sql::Statement *stmt = getConnection()->createStatement();
+    sql::ResultSet *res = stmt->executeQuery("SELECT enzyme,substrate,product,organism FROM reactions;");
+    while (res->next()) {
+    string sub = res->getString("substrate");
+    string pro = res->getString("product");
+    string enz = res->getString("enzyme");
+    string org = res->getString("organism");
+      results.push_back( new Reaction(sub, pro, enz, org, true) );
+    }
+    delete res;
+    delete stmt;
+  } catch (sql::SQLException &e) {
+    cout << "Error querying database\n";
+    handleError(e);
+  }
+  return results;
 }

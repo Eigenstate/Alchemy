@@ -21,19 +21,24 @@
 
 using namespace std;
 
-class Reaction {
+class RawReaction {
   string substrate;
   string product;
   string enzyme;
-  string organism;
+  int id;
+  int partner;
   bool merged;
 
 public:
-  Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &m=false);
+  RawReaction(const string &sub, const string &prod, const std::string& en, const int &i, const int &p, const bool &m=false);
+  RawReaction(list<RawReaction*> merge);
   void print();
   string getProduct();
   string getSubstrate();
   string getEnzyme();
-  string getOrganism();
+  int getPartner();
+  int getID();
   bool isMerged();
+  list<RawReaction*> queryBack(vector<RawReaction*>* l);
+  list<RawReaction*> queryForward(vector<RawReaction*>* l);
 };

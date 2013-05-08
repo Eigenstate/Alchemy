@@ -21,12 +21,11 @@
 #include "Reaction.h"
 using namespace std;
 
-Reaction::Reaction(const string &sub, const string &prod, const string &en, const int &i, const int &p, const bool &m)
+Reaction::Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &m)
       : substrate(sub), 
         product(prod), 
         enzyme(en), 
-        id(i), 
-        partner(p),
+        organism(org),
         merged(m)
         {}
 
@@ -44,66 +43,8 @@ string Reaction::getEnzyme()
 string Reaction::getSubstrate()
 { return substrate; }
 
-int Reaction::getPartner()
-{ return partner; }
-
-int Reaction::getID()
-{ return id; }
+string Reaction::getOrganism()
+{ return organism; }
 
 bool Reaction::isMerged()
 { return merged; }
-
-list<Reaction*> Reaction::queryBack(vector<Reaction*>* l)
-{
-  list<Reaction*> result;
-  for (int i=0; i<l->size(); ++i) {
-    if (getID() == l->at(i)->getPartner())
-      result.push_back(l->at(i));
-  }
-  return result;
-}
-
-list<Reaction*> Reaction::queryForward(vector<Reaction*>* l)
-{
-  list<Reaction*> result;
-  for (int i=0; i<l->size(); ++i) {
-    if (l->at(i)->getID() == getPartner())
-      result.push_back(l->at(i));
-  }
-  return result;
-}
-
-Reaction::Reaction(list<Reaction*> merge)
-{
-  enzyme = merge.front()->getEnzyme();
-  if (merge.size() == 1) {
-    substrate = merge.front()->getSubstrate();
-    product = merge.front()->getProduct();
-    id = merge.front()->getID();
-    partner = 0;
-    merged = false;
-  } else {
-    substrate = product = "";
-    for (list<Reaction*>::iterator it=merge.begin(); it!=merge.end(); ++it) {
-      if ((*it)->getSubstrate() != "NULL") substrate += (*it)->getSubstrate() + "+";
-      if ((*it)->getProduct() != "NULL") product += (*it)->getProduct() + "+";
-      if (enzyme != (*it)->getEnzyme()) {
-        cout << "ERROR: Non-matching enzyme in merge!\n";
-        exit(1);
-      }
-    }
-    substrate.erase(substrate.length()-1); // get rid of extra +
-    product.erase(product.length()-1);
-    merged = true;
-    id = 0;
-    partner = 0;
-  }
-}
-
-
-
-
-
-
-
-
