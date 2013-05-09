@@ -10,7 +10,7 @@ enzymes.
 Alchemy helps you generate the minimum enzymes and cofactors required to turn one
 substance into another (lead, into gold)
 
-![Or water into wine](https://raw.github.com/Eigenstate/Alchemy/master/waterwine.png)
+![Or water into wine](https://raw.github.com/Eigenstate/Alchemy/master/images/waterwine.png)
 
 This is a senior project for my degree in bioinformatics, and is released under the GNU
 GPL3.
