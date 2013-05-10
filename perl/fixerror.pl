@@ -7,7 +7,7 @@ use strict;
 use SOAP::Lite;
 use Database;
 
-my $ORGANISM = "homo sapiens";
+my $ORGANISM = "Saccharomyces cerevisiae";
 my $db = Database->new();
  
   local $/=undef;

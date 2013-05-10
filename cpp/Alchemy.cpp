@@ -17,15 +17,12 @@
  */
 #include <stdlib.h>
 #include <iostream>
-#include "Database.h"
-#include "Reaction.h"
+#include "Graph.h"
+
 using namespace std;
 
 int main (int argc, char **argv)
 {
-  Database *db = new Database();
-  vector<Reaction*> ans = db->getReactions();
-  cout << ans.size() << " strings found\n";
-  ans[1]->print();
+  Graph *g = new Graph();
   exit(0);
 }

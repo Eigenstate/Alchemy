@@ -21,12 +21,12 @@
 #include "Reaction.h"
 using namespace std;
 
-Reaction::Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &m)
+Reaction::Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &d)
       : substrate(sub), 
         product(prod), 
         enzyme(en), 
         organism(org),
-        merged(m)
+        dummy(d)
         {}
 
 void Reaction::print()
@@ -46,5 +46,5 @@ string Reaction::getSubstrate()
 string Reaction::getOrganism()
 { return organism; }
 
-bool Reaction::isMerged()
-{ return merged; }
+bool Reaction::isDummy()
+{ return dummy; }

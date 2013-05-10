@@ -26,14 +26,14 @@ class Reaction {
   string product;
   string enzyme;
   string organism;
-  bool merged;
+  bool dummy;
 
 public:
-  Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &m=false);
+  Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &d=false);
   void print();
   string getProduct();
   string getSubstrate();
   string getEnzyme();
   string getOrganism();
-  bool isMerged();
+  bool isDummy();
 };

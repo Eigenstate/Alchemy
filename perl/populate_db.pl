@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 #
 #    Alchemy, a metabolic pathway generator 
 #    Copyright (C) 2013  Robin Betz
@@ -16,7 +17,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-#!/usr/bin/perl
 
 # Adds all enzymes for the specified organism to the database
 
@@ -25,7 +25,7 @@ use strict;
 use SOAP::Lite;
 use Database;
 
-my $ORGANISM = "homo sapiens";
+my $ORGANISM = "Saccharomyces cerevisiae";
 my $db = Database->new();
 # Get list of enzymes for this organism
 my $resoap = SOAP::Lite

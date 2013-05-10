@@ -51,7 +51,7 @@ sub checkEnzyme {
   my $self = shift;
   my $enzyme = shift;
   my $organism = shift;
-  my @result = @{$self->executeSelectQuery("SELECT rxn_id FROM reactions WHERE enzyme='$enzyme' AND organism='$organism';")};
+  my @result = @{$self->executeSelectQuery("SELECT enzyme FROM reactions WHERE enzyme='$enzyme' AND organism='$organism';")};
   return 1 if (@result > 0);
   return 0;
 }
@@ -77,14 +77,19 @@ sub addEntry {
   my @products = split / \+ /, $split[1];
   $,=" ";
 
-  # Add substrate/product pairs to the database
-  my $last = "NULL";
+  # Add small molecules to database and create query with 
+  # appropriately indexed small molecules
+  my $s = ''; my $p = '';
   while (@substrates or @products) {
-    my $s = "NULL"; my $p = "NULL";
-    if (@substrates > 0) { $s = $self->addLigand(pop @substrates); }
-    if (@products > 0) { $p = $self->addLigand(pop @products); }
-    $last = $self->executeInsertQuery("INSERT INTO reactions (enzyme,substrate,product,partner_rxn,organism) VALUES('$enzyme','$s','$p',$last,'$organism');", "reactions");
+    if (@substrates > 0) { $s .= $self->addLigand(pop @substrates); }
+    if (@products > 0) { $p .= $self->addLigand(pop @products); }
+    
+    if (@substrates > 0) { $s .= "+"; };
+    if (@products > 0) { $p .= "+"; }
   }
+
+  # Add substrate/product pairs to the database
+    $self->executeInsertQuery("INSERT IGNORE INTO reactions (enzyme,substrate,product,organism) VALUES('$enzyme','$s','$p','$organism');", "reactions");
 }
 
 # Adds a named ligand to the database if it's not already there. Otherwise,

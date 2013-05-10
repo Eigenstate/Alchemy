@@ -22,6 +22,7 @@
 #include <cppconn/statement.h>
 #include <iostream>
 #include <string>
+#include <map>
 #include "Database.h"
 #include "Reaction.h"
 #include "RawReaction.h"
@@ -147,13 +148,34 @@ vector<Reaction*> Database::getReactions()
     string pro = res->getString("product");
     string enz = res->getString("enzyme");
     string org = res->getString("organism");
-      results.push_back( new Reaction(sub, pro, enz, org, true) );
+      results.push_back( new Reaction(sub, pro, enz, org, false) );
     }
     delete res;
     delete stmt;
   } catch (sql::SQLException &e) {
-    cout << "Error querying database\n";
+    cout << "Error querying database for reactions\n";
     handleError(e);
   }
   return results;
+}
+
+map<int,string> Database::getMolecules()
+{
+  map<int,string> molecules;
+  try {
+    sql::Statement *stmt = getConnection()->createStatement();
+    sql::ResultSet *res = stmt->executeQuery("select idx,name FROM molecules;");
+    while (res->next()) {
+      pair<int,string> ins( atoi(res->getString("idx").c_str()),
+                            res->getString("name").c_str() );
+                            
+      molecules.insert(ins);
+    }
+    delete res;
+    delete stmt;
+  } catch (sql::SQLException &e) {
+    cout << "Error querying database for molecules\n";
+    handleError(e);
+  }
+  return molecules;
 }
