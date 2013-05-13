@@ -15,6 +15,9 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef MOLECULESET_H
+#define MOLECULESET_H
+
 #include <map>
 #include <string>
 
@@ -30,3 +33,5 @@ public:
   void insertMolecule(Molecule* m);
   Molecule* getMolecule(const string &name);
 };
+
+#endif

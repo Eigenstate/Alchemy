@@ -15,16 +15,21 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef GRAPH_H
+#define GRAPH_H
+
 #include <string>
 #include <vector>
 #include <map> // C++11 for unordered map and set isn't worth teensy speedup IMO
 #include <set>
+#include "Modes.h"
 using namespace std;
 
 class Database;
 class Reaction;
 class Molecule;
 class MoleculeSet;
+
 
 class Graph
 {
@@ -33,9 +38,10 @@ class Graph
   vector<Molecule*> mols;
   MoleculeSet* molecules;
   map<Molecule*, set<Molecule*>*> edges;
+  graph_mode_t mode;
 
 public:
-  Graph();
+  Graph(const graph_mode_t m);
   ~Graph();
   vector<Reaction*> shortestPath(const string &start, const string &end);
   Reaction* getReaction(Molecule *sub, Molecule *prod);
@@ -48,4 +54,7 @@ private:
   const vector<Reaction*>* getReactions();
   const char* getGraphviz(vector<Reaction*>* res);
   void render(string &temp, const char *filename);
+  graph_mode_t getMode();
 };
+
+#endif

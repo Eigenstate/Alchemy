@@ -87,7 +87,9 @@ sub addEntry {
     if (@substrates > 0) { $s .= "+"; };
     if (@products > 0) { $p .= "+"; }
   }
-
+  # Add substrate/product compund pairs to the database
+  $self->addLigand( $s );
+  $self->addLigand( $p );
   # Add substrate/product pairs to the database
     $self->executeInsertQuery("INSERT IGNORE INTO reactions (enzyme,substrate,product,organism) VALUES('$enzyme','$s','$p','$organism');", "reactions");
 }
@@ -101,17 +103,20 @@ sub addLigand {
   
   # Check if already in database
   my @result = @{$self->executeSelectQuery("SELECT idx FROM molecules WHERE name='$ligand';")};
-  $,=" ";
   return $result[0][0] if (@result != 0); # Ligand is 1st row, only field returned
 
   # Add to database if it doesn't exist yet
-  my $id = SOAP::Lite
-   -> uri('http://www.brenda-enzymes.info/soap2')
-   -> proxy('http://www.brenda-enzymes.info/soap2/brenda_server.php')
-   -> getLigandStructureIdByCompoundName("$ligand")
-   -> result;
-  if (! length $id) { $id = "NULL"; } # Not a defined structure ID in brenda for some reason
-  
+  my $id;
+  if ( index($ligand, '+') == -1) {
+    $id = SOAP::Lite
+     -> uri('http://www.brenda-enzymes.info/soap2')
+     -> proxy('http://www.brenda-enzymes.info/soap2/brenda_server.php')
+     -> getLigandStructureIdByCompoundName("$ligand")
+     -> result;
+    if (! length $id) { $id = "NULL"; } # Not a defined structure ID in brenda for some reason
+  } else { # Dummy reaction
+    $id = "DUMMY";
+  }
   my $idx = $self->executeInsertQuery("INSERT INTO molecules (structure_id,name) VALUES('$id','$ligand');","molecules");
   return $idx;
 }

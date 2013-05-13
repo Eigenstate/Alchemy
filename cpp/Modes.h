@@ -15,31 +15,12 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef MOLECULE_H
-#define MOLECULE_H
+#ifndef MODES_H
+#define MODES_H 
 
-#include <string>
-using namespace std;
-
-class Molecule {
-  int distance;
-  string rxnname;
-  string ename;
-  Molecule *prev;
-  string struc_id;
-  int cost;
-
-public:
-  Molecule(const string &rn, const string &en, const string &sid);
-  const string getMolID();
-  const string getName();
-  const int getDistance();
-  const int getCost();
-  const string getStructureID();
-  void setDistance(int d);
-  Molecule* getPrevious();
-  void setPrevious(Molecule *p);
-  bool isDummy();
+enum graph_mode_t {
+  FEWEST_NODES = 1,
+  FEWEST_EDGES = 2
 };
 
 #endif

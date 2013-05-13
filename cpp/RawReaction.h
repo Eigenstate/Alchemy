@@ -15,6 +15,9 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef RAWREACTION_H
+#define RAWREACTION_H
+
 #include <string>
 #include <list>
 #include <vector>
@@ -42,3 +45,5 @@ public:
   list<RawReaction*> queryBack(vector<RawReaction*>* l);
   list<RawReaction*> queryForward(vector<RawReaction*>* l);
 };
+
+#endif

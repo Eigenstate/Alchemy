@@ -15,6 +15,8 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef DATABASE_H
+#define DATABASE_H
 
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
@@ -49,4 +51,6 @@ private:
   sql::Connection* getConnection();
   void addProcessedReaction( RawReaction* rxn ); // deprecated
 };
+
+#endif
 

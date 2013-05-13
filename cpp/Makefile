@@ -18,8 +18,6 @@
 CC = g++
 CFLAGS= -O3 -Wall -ggdb
 LINKS= -lmysqlcppconn -lgvc -lgraph -lcdt
-OMPL= -lomp
-OMPFLAG=-fopenmp
 
 HEADERS =  Database.h Reaction.h RawReaction.h Graph.h Molecule.h MoleculeSet.h
 SOURCE = Alchemy.cpp Database.cpp Reaction.cpp RawReaction.cpp Graph.cpp Molecule.cpp \
@@ -30,7 +28,7 @@ all: alchemy
 
 alchemy: $(HEADERS) $(OBJECTS)
 	$(CC) -o alchemy $(OBJECTS) $(LINKS)
-	@(./alchemy)
+#	@(./alchemy)
 
 Database.o: Database.cpp
 	$(CC) $(CFLAGS) -c Database.cpp

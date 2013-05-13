@@ -31,7 +31,8 @@
 
 using namespace std;
 
-Graph::Graph()
+Graph::Graph(const graph_mode_t m)
+  : mode(m)
 {
   // Read in database info
   db = new Database();
@@ -57,7 +58,7 @@ const vector<Reaction*>* Graph::getReactions()
 void Graph::createDummyReactions()
 {
   unsigned int currsize = rxns.size(); // needed since we're adding more to rxns
-  for (unsigned int i=0; i<currsize; ++i) {
+  for (unsigned int i=0; i<currsize; ++i) { // can't parallelize since map is not thread safe
     // Create edge for this reaction
     Molecule *m = molecules->getMolecule( rxns[i]->getSubstrate() );
     if (!edges.count(m))
@@ -107,9 +108,12 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
   Molecule* u = Queue[0];
   for (unsigned int i=0; i<Queue.size(); ++i) {
     Queue[i]->setPrevious(NULL);
-    if (Queue[i]->getMolID() == start)
-      Queue[i]->setDistance(0);
-    else
+    if (Queue[i]->getMolID() == start) {
+      if (getMode() == FEWEST_NODES)
+        Queue[i]->setDistance(Queue[i]->getCost());
+      else if (getMode() == FEWEST_EDGES)
+        Queue[i]->setDistance(0);
+    } else
       Queue[i]->setDistance(INT_MAX);
   }
  
@@ -131,17 +135,18 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
       cout << "ERROR: No path found\n";
       exit(1);
     }
-    if (u->getMolID() == end) {
-      cout << "Success! Reassembling path\n";
-      cout << u->getMolID() << " = " << end << endl;
+    if (u->getMolID() == end)
       break;
-    }
 
     // Update neighbors
     set<Molecule*>* V = getNeighbors(u);
     if (V != NULL) {
       for (set<Molecule*>::iterator it=V->begin(); it!=V->end(); ++it) {
-       int alt = u->getDistance() + 1; // dist (u,v) = 1 for now
+        int alt = 1;
+        if (getMode() == FEWEST_NODES)
+          alt = u->getDistance() + (*it)->getCost();
+        else if (getMode() == FEWEST_EDGES)
+          alt = u->getDistance() + 1; // dist (u,v) = 1 for now (edge cost)
        if (alt < (*it)->getDistance()) {
          (*it)->setDistance(alt);
           (*it)->setPrevious(u);
@@ -158,8 +163,12 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
       stringstream *ss = new stringstream( s->getName() ); 
       string item;
       while (getline(*ss, item, '+'))
-        if (item != start && item != end)
-          result.push_back( new Reaction( item, s->getName(), "0", "0", true) );
+        if (item != start && item != end) {
+          if ( s->getName().find(end) != string::npos )
+            result.push_back( new Reaction( s->getName(), item, "0", "0", true) );
+          else
+            result.push_back( new Reaction( item, s->getName(), "0", "0", true) );
+        }
       delete ss;
     }
     result.push_back(getReaction(s,p));
@@ -267,6 +276,8 @@ void Graph::draw(vector<Reaction*>* res, const char *filename)
   string temp = getGraphviz(res);
   render(temp, filename);
 }
+
+graph_mode_t Graph::getMode() { return mode; }
 
 
 

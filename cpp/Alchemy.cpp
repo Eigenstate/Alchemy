@@ -18,6 +18,8 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
+#include <string>
+#include "Modes.h"
 #include "Graph.h"
 #include "Reaction.h"
 
@@ -25,8 +27,14 @@ using namespace std;
 
 int main (int argc, char **argv)
 {
-  Graph *g = new Graph();
-  vector<Reaction*> res = g->shortestPath("436","476");
-  g->draw(&res, "stuff.png");
+  if (argc != 4) { // program name + 3
+    cout << "Improper number of arguments!\n";
+    cout << "You gave " << argc << endl;
+    exit(1);
+  }
+  graph_mode_t mode = (graph_mode_t)atoi( argv[1] );
+  Graph *g = new Graph( mode );
+  vector<Reaction*> res = g->shortestPath(string(argv[2]),string(argv[3]));
+  g->draw(&res, "output.png");
   exit(0);
 }

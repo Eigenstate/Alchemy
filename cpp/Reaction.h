@@ -15,6 +15,9 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef REACTION_H
+#define REACTION_H
+
 #include <string>
 #include <list>
 #include <vector>
@@ -37,3 +40,5 @@ public:
   string getOrganism();
   bool isDummy();
 };
+
+#endif

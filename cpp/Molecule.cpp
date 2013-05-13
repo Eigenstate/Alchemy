@@ -25,13 +25,21 @@ Molecule::Molecule(const string &rn, const string &en, const string &sid)
     rxnname(rn),
     ename(en),
     prev(NULL),
-    struc_id(sid)
-{}
+    struc_id(sid),
+    cost(1)
+{
+  if (sid=="DUMMY") {
+    for (unsigned int i=0; i<en.size(); ++i) {
+      if (en[i] == '+')
+        ++cost;
+  } }
+}
 
 const string Molecule::getMolID() { return rxnname; }
 const string Molecule::getName() { return ename; }
 const string Molecule::getStructureID() { return struc_id; }
 const int Molecule::getDistance() { return distance; }
+const int Molecule::getCost() { return cost; }
 void Molecule::setDistance(int d) { distance = d; }
 void Molecule::setPrevious(Molecule *p) { prev = p; }
 Molecule* Molecule::getPrevious() { return prev; }
