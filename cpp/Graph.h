@@ -17,18 +17,22 @@
  */
 #include <string>
 #include <vector>
-#include <map>
+#include <map> // C++11 for unordered map and set isn't worth teensy speedup IMO
+#include <set>
 using namespace std;
 
 class Database;
 class Reaction;
 class Molecule;
+class MoleculeSet;
 
 class Graph
 {
   Database *db;
   vector<Reaction*> rxns;
   vector<Molecule*> mols;
+  MoleculeSet* molecules;
+  map<Molecule*, set<Molecule*>*> edges;
 
 public:
   Graph();
@@ -40,7 +44,7 @@ public:
 
 private:
   void createDummyReactions();
-  vector<Molecule*> getNeighbors(Molecule *u);
+  set<Molecule*>* getNeighbors(Molecule *u);
   const vector<Reaction*>* getReactions();
   const char* getGraphviz(vector<Reaction*>* res);
   void render(string &temp, const char *filename);

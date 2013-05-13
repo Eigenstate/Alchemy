@@ -15,24 +15,20 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string>
+#include <utility> // for pair
+#include "Molecule.h"
+#include "MoleculeSet.h"
 using namespace std;
 
-class Molecule {
-  int distance;
-  string rxnname;
-  string ename;
-  Molecule *prev;
-  string struc_id;
+void MoleculeSet::insertMolecule(Molecule* m)
+{
+  if (m->isDummy())
+    data.insert( pair<string,Molecule*>(m->getName(), m) );
+  else
+    data.insert( pair<string,Molecule*>(m->getMolID(), m) );
+}
 
-public:
-  Molecule(const string &rn, const string &en, const string &sid);
-  const string getMolID();
-  const string getName();
-  const int getDistance();
-  const string getStructureID();
-  void setDistance(int d);
-  Molecule* getPrevious();
-  void setPrevious(Molecule *p);
-  bool isDummy();
-};
+Molecule* MoleculeSet::getMolecule(const string &name)
+{
+  return data.at(name);
+}

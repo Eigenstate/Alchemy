@@ -35,3 +35,4 @@ const int Molecule::getDistance() { return distance; }
 void Molecule::setDistance(int d) { distance = d; }
 void Molecule::setPrevious(Molecule *p) { prev = p; }
 Molecule* Molecule::getPrevious() { return prev; }
+bool Molecule::isDummy() { return (struc_id == "DUMMY"); }

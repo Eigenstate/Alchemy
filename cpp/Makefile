@@ -21,9 +21,10 @@ LINKS= -lmysqlcppconn -lgvc -lgraph -lcdt
 OMPL= -lomp
 OMPFLAG=-fopenmp
 
-HEADERS =  Database.h Reaction.h RawReaction.h Graph.h Molecule.h
-SOURCE = Alchemy.cpp Database.cpp Reaction.cpp RawReaction.cpp Graph.cpp Molecule.cpp
-OBJECTS = Alchemy.o Database.o Reaction.o RawReaction.o Graph.o Molecule.o
+HEADERS =  Database.h Reaction.h RawReaction.h Graph.h Molecule.h MoleculeSet.h
+SOURCE = Alchemy.cpp Database.cpp Reaction.cpp RawReaction.cpp Graph.cpp Molecule.cpp \
+				 MoleculeSet.cpp
+OBJECTS = Alchemy.o Database.o Reaction.o RawReaction.o Graph.o Molecule.o MoleculeSet.o
 
 all: alchemy
 
@@ -31,13 +32,13 @@ alchemy: $(HEADERS) $(OBJECTS)
 	$(CC) -o alchemy $(OBJECTS) $(LINKS)
 	@(./alchemy)
 
-Database.o: $(HEADERS) Database.cpp
+Database.o: Database.cpp
 	$(CC) $(CFLAGS) -c Database.cpp
 
-Reaction.o: $(HEADERS) Reaction.cpp
+Reaction.o: Reaction.cpp
 	$(CC) $(CFLAGS) -c Reaction.cpp
 
-RawReaction.o: $(HEADERS) RawReaction.cpp
+RawReaction.o: RawReaction.cpp
 	$(CC) $(CFLAGS) -c RawReaction.cpp
 
 Graph.o: Graph.cpp
@@ -46,7 +47,10 @@ Graph.o: Graph.cpp
 Molecule.o: Molecule.cpp
 	$(CC) $(CFLAGS) -c Molecule.cpp
 
-Alchemy.o: $(HEADERS) Alchemy.cpp
+MoleculeSet.o: MoleculeSet.cpp
+	$(CC) $(CFLAGS) -c MoleculeSet.cpp
+
+Alchemy.o: Alchemy.cpp
 	$(CC) $(CFLAGS) -c Alchemy.cpp
 
 clean:

@@ -15,24 +15,18 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <map>
 #include <string>
+
 using namespace std;
+class Molecule;
 
-class Molecule {
-  int distance;
-  string rxnname;
-  string ename;
-  Molecule *prev;
-  string struc_id;
-
+class MoleculeSet
+{
+  // This is an ordered map because we do inserts only once
+  // and then a lot of lookups
+  map<string, Molecule*> data;
 public:
-  Molecule(const string &rn, const string &en, const string &sid);
-  const string getMolID();
-  const string getName();
-  const int getDistance();
-  const string getStructureID();
-  void setDistance(int d);
-  Molecule* getPrevious();
-  void setPrevious(Molecule *p);
-  bool isDummy();
+  void insertMolecule(Molecule* m);
+  Molecule* getMolecule(const string &name);
 };

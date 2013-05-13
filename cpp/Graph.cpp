@@ -22,10 +22,13 @@
 #include <climits>
 #include <fstream>
 #include <graphviz/gvc.h>
+
 #include "Database.h"
 #include "Reaction.h"
 #include "Molecule.h"
+#include "MoleculeSet.h"
 #include "Graph.h"
+
 using namespace std;
 
 Graph::Graph()
@@ -34,6 +37,9 @@ Graph::Graph()
   db = new Database();
   mols = db->getMolecules();
   rxns = db->getReactions();
+  molecules = new MoleculeSet();
+  for (unsigned int i=0; i<mols.size(); ++i)
+    molecules->insertMolecule( mols[i] );
   createDummyReactions();
 }
 
@@ -52,6 +58,16 @@ void Graph::createDummyReactions()
 {
   unsigned int currsize = rxns.size(); // needed since we're adding more to rxns
   for (unsigned int i=0; i<currsize; ++i) {
+    // Create edge for this reaction
+    Molecule *m = molecules->getMolecule( rxns[i]->getSubstrate() );
+    if (!edges.count(m))
+      edges[m] = new set<Molecule*>();
+    edges[m]->insert(molecules->getMolecule( rxns[i]->getProduct() ));
+
+    Molecule *pm = molecules->getMolecule( rxns[i]->getProduct() );
+    if (!edges.count(pm))
+      edges[pm] = new set<Molecule*>();
+
     // Extract each substrate and product separately
     vector<string> substrates, products;
     stringstream *ss = new stringstream( rxns[i]->getSubstrate() );
@@ -65,13 +81,22 @@ void Graph::createDummyReactions()
       products.push_back(item);
     
     // Create dummy reaction substrate -> substrates and products -> product
-    if (substrates.size() > 1)
-      for (unsigned int j=0; j<substrates.size(); ++j)
+    // Reactions still required for graph reassembly
+    // Create appropriate edges as well
+    if (substrates.size() > 1) {
+      for (unsigned int j=0; j<substrates.size(); ++j) {
         rxns.push_back( new Reaction(substrates[j], rxns[i]->getSubstrate(), "0", "0", true) );
-    if (products.size() > 1)
-      for (unsigned int j=0; j<products.size(); ++j)
+        Molecule *sm = molecules->getMolecule( substrates[j] );
+        if (!edges.count(sm))
+          edges[sm] = new set<Molecule*>();
+        edges[sm]->insert(molecules->getMolecule( rxns[i]->getSubstrate() ));
+    } }
+    if (products.size() > 1) {
+      for (unsigned int j=0; j<products.size(); ++j) {
         rxns.push_back( new Reaction(rxns[i]->getProduct(), products[j], "0", "0", true) );
-    }
+        edges[pm]->insert(molecules->getMolecule( products[j] ));
+    } }
+  }
 }
 
 vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
@@ -102,7 +127,6 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
     Queue.erase(Queue.begin()+loc);
 
     // Check for solved condition
-    cout << "SMALLEST = " << u->getMolID() << " dist = " << u->getDistance() << endl;
     if (u->getDistance() == INT_MAX) {
       cout << "ERROR: No path found\n";
       exit(1);
@@ -114,14 +138,15 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
     }
 
     // Update neighbors
-    vector<Molecule*> V = getNeighbors(u);
-    for (unsigned int j=0; j<V.size(); ++j) {
-      int alt = u->getDistance() + 1; // dist (u,v) = 1 for now
-      if (alt < V[j]->getDistance()) { 
-        V[j]->setDistance(alt);
-        V[j]->setPrevious(u);
-      }
-    }
+    set<Molecule*>* V = getNeighbors(u);
+    if (V != NULL) {
+      for (set<Molecule*>::iterator it=V->begin(); it!=V->end(); ++it) {
+       int alt = u->getDistance() + 1; // dist (u,v) = 1 for now
+       if (alt < (*it)->getDistance()) {
+         (*it)->setDistance(alt);
+          (*it)->setPrevious(u);
+        }
+    } }
   }
   // Reassemble path
   Molecule *p = u;
@@ -133,7 +158,8 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
       stringstream *ss = new stringstream( s->getName() ); 
       string item;
       while (getline(*ss, item, '+'))
-        result.push_back( new Reaction( item, s->getName(), "0", "0", true) );
+        if (item != start && item != end)
+          result.push_back( new Reaction( item, s->getName(), "0", "0", true) );
       delete ss;
     }
     result.push_back(getReaction(s,p));
@@ -143,8 +169,9 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
 }
 
 // Returns products of all reactions with u as substrate
-vector<Molecule*> Graph::getNeighbors(Molecule *u)
+set<Molecule*>* Graph::getNeighbors(Molecule *u)
 {
+  /* This is slow and awful. Fixed now hopefully.
   vector<Molecule*> result;
   string search;
   if (u->getStructureID() == "DUMMY") search = u->getName();
@@ -163,6 +190,18 @@ vector<Molecule*> Graph::getNeighbors(Molecule *u)
     }
   }
   return result;
+  */
+  /* DEBUG PRINTING 
+  cout << " NEighbors of " << u->getName() << " or " << u->getMolID() << endl;
+  for (set<Molecule*>::iterator it=edges[u]->begin(); it!=edges[u]->end(); ++it) {
+    if ((*it)->isDummy())
+      cout << (*it)->getName() << endl;
+    else
+      cout << (*it)->getMolID() << endl;
+  }
+  exit(0);
+  */
+  return edges[u];
 }
 
 Reaction* Graph::getReaction(Molecule *sub, Molecule *prod)
