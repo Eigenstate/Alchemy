@@ -28,7 +28,7 @@ using namespace std;
 
 class Reaction;
 class RawReaction;
-class Molecules;
+class Molecule;
 class Database
 {
   sql::Driver *driver;
@@ -39,13 +39,14 @@ public:
   Database(const string &schem="alchemy");
   vector<Reaction*> getReactions();
   vector<RawReaction*> getRawReactions();
-  map<int,string> getMolecules();
+  vector<Molecule*> getMolecules();
+  void executeInsertQuery( string cmd );
 
 private:
   void handleError(const sql::SQLException &e);
   void setSchema(const string &sch);
   sql::Driver* getDriver();
   sql::Connection* getConnection();
-  void addProcessedReaction( RawReaction* rxn );
+  void addProcessedReaction( RawReaction* rxn ); // deprecated
 };
 

@@ -16,32 +16,22 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <string>
-#include <vector>
-#include <map>
+#include <climits>
+#include "Molecule.h"
+
 using namespace std;
+Molecule::Molecule(const string &rn, const string &en, const string &sid)
+  : distance(INT_MAX),
+    rxnname(rn),
+    ename(en),
+    prev(NULL),
+    struc_id(sid)
+{}
 
-class Database;
-class Reaction;
-class Molecule;
-
-class Graph
-{
-  Database *db;
-  vector<Reaction*> rxns;
-  vector<Molecule*> mols;
-
-public:
-  Graph();
-  ~Graph();
-  vector<Reaction*> shortestPath(const string &start, const string &end);
-  Reaction* getReaction(Molecule *sub, Molecule *prod);
-  string getMolName(const string nid);
-  void draw(vector<Reaction*>* res, const char *filename);
-
-private:
-  void createDummyReactions();
-  vector<Molecule*> getNeighbors(Molecule *u);
-  const vector<Reaction*>* getReactions();
-  const char* getGraphviz(vector<Reaction*>* res);
-  void render(string &temp, const char *filename);
-};
+const string Molecule::getMolID() { return rxnname; }
+const string Molecule::getName() { return ename; }
+const string Molecule::getStructureID() { return struc_id; }
+const int Molecule::getDistance() { return distance; }
+void Molecule::setDistance(int d) { distance = d; }
+void Molecule::setPrevious(Molecule *p) { prev = p; }
+Molecule* Molecule::getPrevious() { return prev; }

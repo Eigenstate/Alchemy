@@ -16,32 +16,23 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <string>
-#include <vector>
-#include <map>
 using namespace std;
 
-class Database;
-class Reaction;
-class Molecule;
-
-class Graph
-{
-  Database *db;
-  vector<Reaction*> rxns;
-  vector<Molecule*> mols;
+class Molecule {
+  int distance;
+  string rxnname;
+  string ename;
+  Molecule *prev;
+  string struc_id;
 
 public:
-  Graph();
-  ~Graph();
-  vector<Reaction*> shortestPath(const string &start, const string &end);
-  Reaction* getReaction(Molecule *sub, Molecule *prod);
-  string getMolName(const string nid);
-  void draw(vector<Reaction*>* res, const char *filename);
+  Molecule(const string &rn, const string &en, const string &sid);
+  const string getMolID();
+  const string getName();
+  const int getDistance();
+  const string getStructureID();
+  void setDistance(int d);
+  Molecule* getPrevious();
+  void setPrevious(Molecule *p);
 
-private:
-  void createDummyReactions();
-  vector<Molecule*> getNeighbors(Molecule *u);
-  const vector<Reaction*>* getReactions();
-  const char* getGraphviz(vector<Reaction*>* res);
-  void render(string &temp, const char *filename);
 };

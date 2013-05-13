@@ -26,6 +26,7 @@
 #include "Database.h"
 #include "Reaction.h"
 #include "RawReaction.h"
+#include "Molecule.h"
 using namespace std;
 
 Database::Database(const string &schem)
@@ -137,6 +138,18 @@ void Database::addProcessedReaction( RawReaction* rxn )
   }
 }
 
+void Database::executeInsertQuery( string cmd )
+{
+  try {
+    sql::Statement *stmt = getConnection()->createStatement();
+    stmt->execute(cmd.c_str());
+    delete stmt;
+  } catch (sql::SQLException &e) {
+    cout << "Error executing insert query. Query was:\n" << cmd << endl;
+    handleError(e);
+  }
+}
+
 vector<Reaction*> Database::getReactions()
 {
   vector<Reaction*> results;
@@ -159,17 +172,14 @@ vector<Reaction*> Database::getReactions()
   return results;
 }
 
-map<int,string> Database::getMolecules()
+vector<Molecule*> Database::getMolecules()
 {
-  map<int,string> molecules;
+  vector<Molecule*> molecules;
   try {
     sql::Statement *stmt = getConnection()->createStatement();
-    sql::ResultSet *res = stmt->executeQuery("select idx,name FROM molecules;");
+    sql::ResultSet *res = stmt->executeQuery("select idx,name,structure_id FROM molecules;");
     while (res->next()) {
-      pair<int,string> ins( atoi(res->getString("idx").c_str()),
-                            res->getString("name").c_str() );
-                            
-      molecules.insert(ins);
+      molecules.push_back( new Molecule( res->getString("idx"), res->getString("name"), res->getString("structure_id") ) );
     }
     delete res;
     delete stmt;

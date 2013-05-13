@@ -16,32 +16,37 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 CC = g++
-CFLAGS= -O3 -Wall -fopenmp -ggdb
-LINKS= -lmysqlcppconn
+CFLAGS= -O3 -Wall -ggdb
+LINKS= -lmysqlcppconn -lgvc -lgraph -lcdt
+OMPL= -lomp
+OMPFLAG=-fopenmp
 
-HEADERS =  Database.h Reaction.h RawReaction.h Graph.h
-SOURCE = Alchemy.cpp Database.cpp Reaction.cpp RawReaction.cpp Graph.cpp
-OBJECTS = Alchemy.o Database.o Reaction.o RawReaction.o Graph.o
+HEADERS =  Database.h Reaction.h RawReaction.h Graph.h Molecule.h
+SOURCE = Alchemy.cpp Database.cpp Reaction.cpp RawReaction.cpp Graph.cpp Molecule.cpp
+OBJECTS = Alchemy.o Database.o Reaction.o RawReaction.o Graph.o Molecule.o
 
 all: alchemy
 
-alchemy: $(OBJECTS)
+alchemy: $(HEADERS) $(OBJECTS)
 	$(CC) -o alchemy $(OBJECTS) $(LINKS)
-#	@(./alchemy)
+	@(./alchemy)
 
-Database.o: $(HEADERS)
+Database.o: $(HEADERS) Database.cpp
 	$(CC) $(CFLAGS) -c Database.cpp
 
-Reaction.o: $(HEADERS)
+Reaction.o: $(HEADERS) Reaction.cpp
 	$(CC) $(CFLAGS) -c Reaction.cpp
 
-RawReaction.o: $(HEADERS)
+RawReaction.o: $(HEADERS) RawReaction.cpp
 	$(CC) $(CFLAGS) -c RawReaction.cpp
 
-Graph.o: $(HEADERS)
+Graph.o: Graph.cpp
 	$(CC) $(CFLAGS) -c Graph.cpp
 
-Alchemy.o: $(HEADERS)
+Molecule.o: Molecule.cpp
+	$(CC) $(CFLAGS) -c Molecule.cpp
+
+Alchemy.o: $(HEADERS) Alchemy.cpp
 	$(CC) $(CFLAGS) -c Alchemy.cpp
 
 clean:

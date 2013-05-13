@@ -17,12 +17,16 @@
  */
 #include <stdlib.h>
 #include <iostream>
+#include <vector>
 #include "Graph.h"
+#include "Reaction.h"
 
 using namespace std;
 
 int main (int argc, char **argv)
 {
   Graph *g = new Graph();
+  vector<Reaction*> res = g->shortestPath("436","476");
+  g->draw(&res, "stuff.png");
   exit(0);
 }
