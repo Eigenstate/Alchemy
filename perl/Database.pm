@@ -21,6 +21,7 @@ use strict;
 use warnings;
 use Exporter;  # Makes perl modules a little easier
 use DBI;       # for mySQL
+use LWP::Simple;
 use Reaction;  # chemical reaction data structure
 
 our @ISA = qw( Exporter );
@@ -62,36 +63,33 @@ sub addEntry {
   my $self = shift;
   # Process command line arguments
   my $enzyme = shift;
+  my $enzdef = shift;
   my $organism = shift;
   my $rxnpartners = shift;
 
   # Check if the enzyme is in the enzyme database, if not, get its name and add it in 
-  my @result = @{$self->executeSelectQuery("SELECT name FROM enzymes WHERE ec_num='$enzyme';")};
-  if (@result == 0) {
-    my $test = $self->executeInsertQuery("INSERT INTO enzymes (ec_num) VALUES('$enzyme');", "enzymes");
-  }
+  $enzdef = quotemeta $enzdef;
+  my $test = $self->executeInsertQuery("INSERT IGNORE INTO enzymes (uniprot,name) VALUES('$enzyme','$enzdef');", "enzymes");
 
   # Break up the reaction into substrates and products
-  my @split = split / = /, $rxnpartners;
+  my @split = split / <=> /, $rxnpartners;
   my @substrates = split / \+ /, $split[0];
   my @products = split / \+ /, $split[1];
   $,=" ";
 
   # Add small molecules to database and create query with 
   # appropriately indexed small molecules
-  my $s = ''; my $p = '';
+  my $s = join "+", @substrates;
+  my $p = join "+", @products;
   while (@substrates or @products) {
-    if (@substrates > 0) { $s .= $self->addLigand(pop @substrates); }
-    if (@products > 0) { $p .= $self->addLigand(pop @products); }
-    
-    if (@substrates > 0) { $s .= "+"; };
-    if (@products > 0) { $p .= "+"; }
+    if (@substrates > 0) { $self->addLigand(pop @substrates); }
+    if (@products > 0) { $self->addLigand(pop @products); }
   }
   # Add substrate/product compund pairs to the database
   $self->addLigand( $s );
   $self->addLigand( $p );
   # Add substrate/product pairs to the database
-    $self->executeInsertQuery("INSERT IGNORE INTO reactions (enzyme,substrate,product,organism) VALUES('$enzyme','$s','$p','$organism');", "reactions");
+  $self->executeInsertQuery("INSERT IGNORE INTO reactions (enzyme,substrate,product,organism) VALUES('$enzyme','$s','$p','$organism');", "reactions");
 }
 
 # Adds a named ligand to the database if it's not already there. Otherwise,
@@ -99,39 +97,31 @@ sub addEntry {
 sub addLigand {
   my $self = shift;
   my $ligand = shift;
-  $ligand = quotemeta $ligand;
-  
+  $ligand =~ s/^\s+//;  # remove leading spaces
+  $ligand =~ s/\s+$//;  # remove trailing spaces
   # Check if already in database
-  my @result = @{$self->executeSelectQuery("SELECT idx FROM molecules WHERE name='$ligand';")};
+  my @result = @{$self->executeSelectQuery("SELECT kegg_id FROM molecules WHERE kegg_id='$ligand';")};
   return $result[0][0] if (@result != 0); # Ligand is 1st row, only field returned
 
   # Add to database if it doesn't exist yet
-  my $id;
+  my $name;
   if ( index($ligand, '+') == -1) {
-    $id = SOAP::Lite
-     -> uri('http://www.brenda-enzymes.info/soap2')
-     -> proxy('http://www.brenda-enzymes.info/soap2/brenda_server.php')
-     -> getLigandStructureIdByCompoundName("$ligand")
-     -> result;
-    if (! length $id) { $id = "NULL"; } # Not a defined structure ID in brenda for some reason
-  } else { # Dummy reaction
-    $id = "DUMMY";
+    $ligand =~ s/\(.*?\)//;
+    my $rr = get "http://rest.kegg.jp/get/$ligand" or die "Unable to fetch ligand $ligand\n";
+    if ($rr =~ m/NAME        (.*)\n/) {
+      $name = $1;
+      chop $name if ( substr $name, -1 eq ";" );
+      $name = quotemeta $name;
+    } else { 
+      if ($rr =~ m/ENTRY       (.*?)\s/) {
+        $name = $1;
+        $name = quotemeta $name;
+      } else {die "Error finding ligand $ligand\n"; }
+    }
   }
-  my $idx = $self->executeInsertQuery("INSERT INTO molecules (structure_id,name) VALUES('$id','$ligand');","molecules");
+  else { $name= "DUMMY"; }
+  my $idx = $self->executeInsertQuery("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('$ligand','$name');","molecules");
   return $idx;
-}
-
-# Finds all enzymes that use a substrate, in the database
-# Takes one argument, the substrate, and returns an array with enzymes
-sub findEnzymeBySubstrate {
-  my $self = shift;
-  my $substrate = shift or die "Incorrect arguments to database lookup\n";
-  $substrate = quotemeta $substrate;
-  
-  # Create and run the query on the database
-  my $query = "SELECT enzyme FROM reactions WHERE substrate='$substrate';";
-  my @enzymes= @{$self->executeSelectQuery($query)};
-  return @enzymes; 
 }
 
 # Executes a SQL query on the database and returns the result
@@ -154,13 +144,8 @@ sub executeInsertQuery {
   my $self = shift;
   my $query = shift or die "No query specified in executeInsertQuery!\n";
   my $table = shift or die "No table specified in executeInsertQuery!\n";
-  $self->{dbh}->do("$query") or die "Database error: $DBI::errstr\n";
+  $self->{dbh}->do("$query") or die "Database error: $DBI::errstr\nQuery was $query\n";
   return $self->{dbh}->last_insert_id("", "", "$table", "");
-}
-
-# Finds all products an enzyme creates, in the database
-sub findEnzymeByProduct {
-  my $self = shift;
 }
 
 # Returns a hash reference to all ligands

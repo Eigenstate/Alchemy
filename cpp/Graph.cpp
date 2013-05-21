@@ -100,15 +100,17 @@ void Graph::createDummyReactions()
   }
 }
 
-vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
+vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
 {
+  setStart(s);
+  setEnd(e);
   // Initialize distance and previous array
   // This is because molecule IDs dont start from zero
   vector<Molecule*> Queue = mols;
   Molecule* u = Queue[0];
   for (unsigned int i=0; i<Queue.size(); ++i) {
     Queue[i]->setPrevious(NULL);
-    if (Queue[i]->getMolID() == start) {
+    if (Queue[i]->getMolID() == getStart()) {
       if (getMode() == FEWEST_NODES)
         Queue[i]->setDistance(Queue[i]->getCost());
       else if (getMode() == FEWEST_EDGES)
@@ -135,7 +137,7 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
       cout << "ERROR: No path found\n";
       exit(1);
     }
-    if (u->getMolID() == end)
+    if (u->getMolID() == getEnd())
       break;
 
     // Update neighbors
@@ -163,8 +165,8 @@ vector<Reaction*> Graph::shortestPath(const string &start, const string &end)
       stringstream *ss = new stringstream( s->getName() ); 
       string item;
       while (getline(*ss, item, '+'))
-        if (item != start && item != end) {
-          if ( s->getName().find(end) != string::npos )
+        if (item != getStart() && item != getEnd()) {
+          if ( s->getName().find(getEnd()) != string::npos )
             result.push_back( new Reaction( s->getName(), item, "0", "0", true) );
           else
             result.push_back( new Reaction( item, s->getName(), "0", "0", true) );
@@ -239,13 +241,21 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
   for (unsigned int i=0; i<res->size(); ++i) {
     if (res->at(i)->getSubstrate().find('+') != string::npos)
       result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"honeydew4\" label=\"\"];\n";
-    else
-      result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"white\" label=\"" + getMolName(res->at(i)->getSubstrate()) + "\"];\n";
+    else {
+      if (res->at(i)->getSubstrate()==getStart())
+        result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"chartreuse3\" label=\"" + getMolName(res->at(i)->getSubstrate()) + "\"];\n";
+      else
+        result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"white\" label=\"" + getMolName(res->at(i)->getSubstrate()) + "\"];\n";
+    }
 
     if (res->at(i)->getProduct().find('+') != string::npos)
       result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"honeydew4\" label=\"\"];\n";
-    else
-      result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"white\" label=\"" + getMolName(res->at(i)->getProduct()) + "\"];\n";
+    else {
+      if (res->at(i)->getProduct()==getEnd())
+        result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"coral2\" label=\"" + getMolName(res->at(i)->getProduct()) + "\"];\n";
+      else
+        result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"white\" label=\"" + getMolName(res->at(i)->getProduct()) + "\"];\n";
+    }
     
     if (res->at(i)->isDummy()) enz = "";
     else enz = res->at(i)->getEnzyme();
@@ -278,6 +288,10 @@ void Graph::draw(vector<Reaction*>* res, const char *filename)
 }
 
 graph_mode_t Graph::getMode() { return mode; }
+const string Graph::getStart() { return start; }
+const string Graph::getEnd() { return end; }
+void Graph::setStart(const string &s) { start = s; }
+void Graph::setEnd(const string &e) { end = e; }
 
 
 

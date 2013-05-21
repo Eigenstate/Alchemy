@@ -39,14 +39,18 @@ class Graph
   MoleculeSet* molecules;
   map<Molecule*, set<Molecule*>*> edges;
   graph_mode_t mode;
+  string start;
+  string end;
 
 public:
   Graph(const graph_mode_t m);
   ~Graph();
-  vector<Reaction*> shortestPath(const string &start, const string &end);
+  vector<Reaction*> shortestPath(const string &s, const string &e);
   Reaction* getReaction(Molecule *sub, Molecule *prod);
   string getMolName(const string nid);
   void draw(vector<Reaction*>* res, const char *filename);
+  void setStart(const string &s);
+  void setEnd(const string &e);
 
 private:
   void createDummyReactions();
@@ -55,6 +59,8 @@ private:
   const char* getGraphviz(vector<Reaction*>* res);
   void render(string &temp, const char *filename);
   graph_mode_t getMode();
+  const string getStart();
+  const string getEnd();
 };
 
 #endif
