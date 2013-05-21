@@ -148,6 +148,38 @@ sub executeInsertQuery {
   return $self->{dbh}->last_insert_id("", "", "$table", "");
 }
 
+# Removes duplicate molecule counts like 2 C0001 and 3 C0001 should be listed as just C0001
+sub removeDuplicates
+{
+  my $self = shift;
+  my @ligands = @{$self->executeSelectQuery("SELECT * FROM molecules WHERE name!='DUMMY';")};
+  my $errcount=0;
+  for (my $i=0; $i<@ligands; ++$i) {
+    for (my $j=$i+1; $j<@ligands; ++$j) { 
+      # Check and handle duplicates
+      if (index (@{$ligands[$i]}[0],@{$ligands[$j]}[0]) > 0) {
+        print "Handling duplicates containing @{$ligands[$j]}[0]\n";
+        $self->{dbh}->do("DELETE FROM molecules WHERE kegg_id like '%@{$ligands[$j]}[0]%';") 
+          or die "Database error: $DBI::errstr\nDeletion was was '%@{$ligands[$j]}[0]%'\n";
+        $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('@{$ligands[$j]}[0]','@{$ligands[$j]}[1]');")
+          or die "Database error: $DBI::errstr\nInsertion was '@{$ligands[$j]}[0]','@{$ligands[$j]}[1]'\n";
+        ++$errcount;
+        last;
+      } elsif (index (@{$ligands[$j]}[0],@{$ligands[$i]}[0]) > 0) {
+        print "Handling duplicates containing @{$ligands[$i]}[0]\n";
+        $self->{dbh}->do("DELETE FROM molecules WHERE kegg_id like '%@{$ligands[$i]}[0]%';") 
+          or die "Database error: $DBI::errstr\nDeletion was %@{$ligands[$i]}[0]%\n";
+        $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('@{$ligands[$i]}[0]','@{$ligands[$i]}[1]');")
+          or die "Database error: $DBI::errstr\nQuery was '@{$ligands[$i]}[0]','@{$ligands[$i]}[1]'\n";
+        ++$errcount;
+        last;
+      }
+    }
+  }
+  print "Removed $errcount duplicates\n";
+  return;
+}
+
 # Returns a hash reference to all ligands
 # Key = index, value = ligand name
 sub getLigands {
@@ -163,6 +195,28 @@ sub getLigands {
     $ligands->{@{$row}[0]} = @{$row}[2];
   }
   return $ligands;
+}
+
+# Creates dummy reactions
+sub createDummies {
+  my $self = shift;
+  my @rxns = @{$self->executeSelectQuery("SELECT substrate,product FROM reactions;")};
+  my $count=0;
+  foreach my $rxn(@rxns) {
+    my $sub = @{$rxn}[0];
+    my $prod = @{$rxn}[1];
+    if (index($sub,"(n+1)")==-1 and index($sub,"+")!=-1) {
+      $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('$sub','DUMMY')")
+        or die "Database error: $DBI::errstr\nInsert was $sub\n";
+      ++$count;
+    }
+    if (index($prod,"(n+1)")==-1 and index($prod,"+")!=-1) {
+      $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('$prod','DUMMY')")
+        or die "Database error: $DBI::errstr\nInsert was $prod\n";
+      ++$count;
+    }
+  }
+  print "Added $count dummies\n";
 }
 
 # Returns a hash reference to all reactions

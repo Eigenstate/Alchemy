@@ -71,14 +71,23 @@ void Graph::createDummyReactions()
 
     // Extract each substrate and product separately
     vector<string> substrates, products;
-    stringstream *ss = new stringstream( rxns[i]->getSubstrate() );
+    string ps = rxns[i]->getSubstrate();
+    if (ps.find("(n+1)")!=string::npos) ps = ps.erase(ps.find("(n+1)"),5);
+    stringstream *ss = new stringstream( ps );
     string item;
     while (getline(*ss, item, '+')) {
+      // Remove numbers, like "5 H2O" should just be "H2O"
+      if (item.find(" ") != string::npos)
+        item = item.substr(item.find(" ")+1);
       substrates.push_back(item);
     }
     delete ss;
-    ss = new stringstream( rxns[i]->getProduct() );
+    ps = rxns[i]->getProduct();
+    if (ps.find("(n+1)")!=string::npos) ps = ps.erase(ps.find("(n+1)"),5);
+    ss = new stringstream( ps );
     while (getline(*ss, item, '+'))
+      if (item.find(" ") != string::npos)
+        item = item.substr(item.find(" ")+1);
       products.push_back(item);
     
     // Create dummy reaction substrate -> substrates and products -> product
@@ -160,7 +169,7 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
   vector<Reaction*> result;
   while (p->getPrevious() != NULL) {
     Molecule *s = p->getPrevious();
-    if (s->getStructureID() == "DUMMY") {
+    if (s->isDummy()) {
       vector<string> parents;
       stringstream *ss = new stringstream( s->getName() ); 
       string item;
@@ -219,9 +228,9 @@ Reaction* Graph::getReaction(Molecule *sub, Molecule *prod)
 {
   // Define search terms based on if this is a dummy reaction
   string ssubs, sprods;
-  if (sub->getStructureID() == "DUMMY") ssubs = sub->getName();
+  if (sub->isDummy()) ssubs = sub->getName();
   else ssubs = sub->getMolID();
-  if (prod->getStructureID() == "DUMMY") sprods = prod->getName();
+  if (prod->isDummy()) sprods = prod->getName();
   else sprods = prod->getMolID();
 
   // Search
@@ -239,7 +248,10 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
   string sub, prod, enz;
 
   for (unsigned int i=0; i<res->size(); ++i) {
-    if (res->at(i)->getSubstrate().find('+') != string::npos)
+    int pc=0;
+    for (unsigned int j=0; j<res->at(i)->getSubstrate().size(); ++j)
+      if (res->at(i)->getSubstrate()[j]=='+') ++pc;
+    if (pc>1 || (pc==1 && res->at(i)->getSubstrate().find("(n+1")==string::npos) )
       result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"honeydew4\" label=\"\"];\n";
     else {
       if (res->at(i)->getSubstrate()==getStart())
@@ -247,8 +259,10 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
       else
         result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"white\" label=\"" + getMolName(res->at(i)->getSubstrate()) + "\"];\n";
     }
-
-    if (res->at(i)->getProduct().find('+') != string::npos)
+    pc=0;
+    for (unsigned int j=0; j<res->at(i)->getProduct().size(); ++j)
+      if (res->at(i)->getProduct()[j]=='+') ++pc;
+    if(pc>1 || (pc==1 &&res->at(i)->getProduct().find("(n+1)")==string::npos) )
       result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"honeydew4\" label=\"\"];\n";
     else {
       if (res->at(i)->getProduct()==getEnd())

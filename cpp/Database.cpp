@@ -65,6 +65,7 @@ void Database::handleError(const sql::SQLException &e)
   exit(1);
 }
 
+// Deprecated
 vector<RawReaction*> Database::getRawReactions()
 {
   vector<RawReaction*> rawresults;
@@ -121,6 +122,7 @@ vector<RawReaction*> Database::getRawReactions()
   return procresults;
 }
 
+// Deprecated
 void Database::addProcessedReaction( RawReaction* rxn )
 {
   cout << "You are trying to add rxn to database... NO!";
@@ -177,9 +179,9 @@ vector<Molecule*> Database::getMolecules()
   vector<Molecule*> molecules;
   try {
     sql::Statement *stmt = getConnection()->createStatement();
-    sql::ResultSet *res = stmt->executeQuery("select idx,name,structure_id FROM molecules;");
+    sql::ResultSet *res = stmt->executeQuery("SELECT kegg_id,name FROM molecules;");
     while (res->next()) {
-      molecules.push_back( new Molecule( res->getString("idx"), res->getString("name"), res->getString("structure_id") ) );
+      molecules.push_back( new Molecule( res->getString("kegg_id"), res->getString("name")) );
     }
     delete res;
     delete stmt;

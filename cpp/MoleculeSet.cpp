@@ -16,19 +16,34 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <utility> // for pair
+#include <iostream>
 #include "Molecule.h"
 #include "MoleculeSet.h"
 using namespace std;
 
 void MoleculeSet::insertMolecule(Molecule* m)
 {
-  if (m->isDummy())
-    data.insert( pair<string,Molecule*>(m->getName(), m) );
-  else
-    data.insert( pair<string,Molecule*>(m->getMolID(), m) );
+  data.insert( pair<string,Molecule*>(m->getMolID(), m) );
 }
 
 Molecule* MoleculeSet::getMolecule(const string &name)
 {
-  return data.at(name);
+  string pname = name;
+cout << "String: " << name << endl;
+  // Compound dummy molecule needs no processing
+  int pluscount=0;
+  for (unsigned int i=0; i<name.length(); ++i)
+    if (name.at(i)=='+') ++pluscount; 
+  if ( (pluscount>1)
+    || (pluscount==1 && name.find("(n+1)")==string::npos) ) {
+    return data.at(name);
+  }
+
+  // Remove chain length specification
+  if (name.find("(")!=string::npos)
+    pname = name.substr(0,name.find("("));
+  // Remove number of molecule specification
+  if (name.find(" ")!=string::npos)
+    pname = name.substr(name.find(" ")+1);
+  return data.at(pname);
 }

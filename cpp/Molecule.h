@@ -23,19 +23,17 @@ using namespace std;
 
 class Molecule {
   int distance;
-  string rxnname;
   string ename;
   Molecule *prev;
-  string struc_id;
+  string kegg_id;
   int cost;
 
 public:
-  Molecule(const string &rn, const string &en, const string &sid);
+  Molecule(const string &kid, const string &n);
   const string getMolID();
   const string getName();
   const int getDistance();
   const int getCost();
-  const string getStructureID();
   void setDistance(int d);
   Molecule* getPrevious();
   void setPrevious(Molecule *p);

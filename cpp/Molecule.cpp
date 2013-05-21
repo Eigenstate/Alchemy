@@ -20,27 +20,25 @@
 #include "Molecule.h"
 
 using namespace std;
-Molecule::Molecule(const string &rn, const string &en, const string &sid)
+Molecule::Molecule(const string &kid, const string &n)
   : distance(INT_MAX),
-    rxnname(rn),
-    ename(en),
+    ename(n),
     prev(NULL),
-    struc_id(sid),
+    kegg_id(kid),
     cost(1)
 {
-  if (sid=="DUMMY") {
-    for (unsigned int i=0; i<en.size(); ++i) {
-      if (en[i] == '+')
+  if (n=="DUMMY") {
+    for (unsigned int i=0; i<n.size(); ++i) {
+      if (n[i] == '+')
         ++cost;
   } }
 }
 
-const string Molecule::getMolID() { return rxnname; }
+const string Molecule::getMolID() { return kegg_id; }
 const string Molecule::getName() { return ename; }
-const string Molecule::getStructureID() { return struc_id; }
 const int Molecule::getDistance() { return distance; }
 const int Molecule::getCost() { return cost; }
 void Molecule::setDistance(int d) { distance = d; }
 void Molecule::setPrevious(Molecule *p) { prev = p; }
 Molecule* Molecule::getPrevious() { return prev; }
-bool Molecule::isDummy() { return (struc_id == "DUMMY"); }
+bool Molecule::isDummy() { return (getName() == "DUMMY"); }

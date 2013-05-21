@@ -33,22 +33,22 @@ alchemy: $(HEADERS) $(OBJECTS)
 Database.o: Database.cpp
 	$(CC) $(CFLAGS) -c Database.cpp
 
-Reaction.o: Reaction.cpp
+Reaction.o: Reaction.cpp Molecule.o
 	$(CC) $(CFLAGS) -c Reaction.cpp
 
 RawReaction.o: RawReaction.cpp
 	$(CC) $(CFLAGS) -c RawReaction.cpp
 
-Graph.o: Graph.cpp
+Graph.o: Graph.cpp Database.o Reaction.o
 	$(CC) $(CFLAGS) -c Graph.cpp
 
 Molecule.o: Molecule.cpp
 	$(CC) $(CFLAGS) -c Molecule.cpp
 
-MoleculeSet.o: MoleculeSet.cpp
+MoleculeSet.o: MoleculeSet.cpp Molecule.o
 	$(CC) $(CFLAGS) -c MoleculeSet.cpp
 
-Alchemy.o: Alchemy.cpp
+Alchemy.o: Alchemy.cpp Graph.o
 	$(CC) $(CFLAGS) -c Alchemy.cpp
 
 clean:
