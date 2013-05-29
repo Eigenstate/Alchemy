@@ -32,6 +32,8 @@ class MoleculeSet
 public:
   void insertMolecule(Molecule* m);
   Molecule* getMolecule(const string &name);
+  map<string, Molecule*>::iterator getBeginIterator();
+  map<string, Molecule*>::iterator getEndIterator();
 private:
   const string processName(const string &name);
 };

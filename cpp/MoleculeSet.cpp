@@ -16,6 +16,8 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <utility> // for pair
+#include <sstream>
+#include <string>
 #include "Molecule.h"
 #include "MoleculeSet.h"
 //#include <iostream>
@@ -23,9 +25,12 @@ using namespace std;
 
 void MoleculeSet::insertMolecule(Molecule* m)
 {
-  string pname = processName( m->getMolID() );
+  string pname = processName( m->generateID() );
   data.insert( pair<string,Molecule*>(pname, m) );
 }
+
+map<string, Molecule*>::iterator MoleculeSet::getBeginIterator() { return data.begin(); }
+map<string, Molecule*>::iterator MoleculeSet::getEndIterator() { return data.end(); }
 
 Molecule* MoleculeSet::getMolecule(const string &name)
 {
@@ -37,20 +42,36 @@ Molecule* MoleculeSet::getMolecule(const string &name)
 // Removes (n+1), numbers, etc.
 const string MoleculeSet::processName(const string &name)
 {
+  // Check if it is a dummy reaction 
   string pname = name;
-  // Compound dummy reaction needs no processing
   int pluscount=0;
   for (unsigned int i=0; i<name.length(); ++i)
     if (name.at(i)=='+') ++pluscount; 
+
+  // Compound dummy reaction needs to be taken apart and reassembled correctly
   if ( (pluscount>1)
     || (pluscount==1 && name.find("(n+")==string::npos) ) {
+
+    if (pname.find("(n+1)") != string::npos) pname = pname.erase(pname.find("(n+1)"),5);
+    if (pname.find("(n+2)") != string::npos) pname = pname.erase(pname.find("(n+2)"),5);
+    stringstream *ss = new stringstream( pname ); 
+    pname="";
+    string item;
+    while (getline(*ss, item, '+')) {
+      if (item.find(" ") != string::npos) item = item.substr(item.find(" ")+1);
+      pname += item + "+";
+    }
+    delete ss;
+    pname.erase(pname.length()-1);
     return pname;
   }
   // Remove chain length specification
   if (pname.find("(")!=string::npos)
     pname = pname.substr(0,pname.find("("));
+
   // Remove number of molecule specification
   if (pname.find(" ")!=string::npos)
     pname = name.substr(pname.find(" ")+1);
+
   return pname;
 }

@@ -19,25 +19,27 @@
 #define MOLECULE_H
 
 #include <string>
+#include <vector>
 using namespace std;
 
 class Molecule {
   int distance;
-  string ename;
   Molecule *prev;
-  string kegg_id;
-  int cost;
+  string ename;
+  vector<string> kegg_id;
 
 public:
-  Molecule(const string &kid, const string &n);
-  const string getMolID();
+  Molecule(string ids, string names);
+  vector<string> getMolIDs();
   const string getName();
+  bool search(const string id);
   const int getDistance();
   const int getCost();
   void setDistance(int d);
   Molecule* getPrevious();
   void setPrevious(Molecule *p);
   bool isDummy();
+  string generateID();
 };
 
 #endif

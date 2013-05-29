@@ -31,19 +31,22 @@
 #include "Graph.h"
 
 using namespace std;
-
+ 
 Graph::Graph(const graph_mode_t m)
-  : mode(m)
+             : mode(m)
 {
-  db = new Database();
-  // Read in molecule data
+   db = new Database();
+
+  cout << "Reading in molecules\n";
   mols = db->getMolecules();
   molecules = new MoleculeSet();
   for (unsigned int i=0; i<mols.size(); ++i)
     molecules->insertMolecule( mols[i] );
 
   // Read in reaction data
+  cout << "Populating reactions\n";
   populateReactions();
+  cout << "Creating dummy reactions\n";
   createDummyReactions();
 
   // Construct list of available colors
@@ -84,16 +87,45 @@ void Graph::createDummyReactions()
 {
   unsigned int currsize = rxns.size(); // needed since we're adding more to rxns
   for (unsigned int i=0; i<currsize; ++i) { // can't parallelize since map is not thread safe
-    // Create edge for this reaction
+    // Create edge for this reaction from substrate to product
     Molecule *m = rxns[i]->getSubstrate();
-    if (!edges.count(m))
+    if (!edges.count(m)) {
       edges[m] = new set<Molecule*>();
+    }
     edges[m]->insert(rxns[i]->getProduct());
 
+    // Create dummy INEDGES to the reaction nodes
+    for (unsigned int j=0; j<m->getMolIDs().size(); ++j) {
+      Molecule *n = molecules->getMolecule( m->getMolIDs().at(j) );
+      if (!edges.count(n)) {
+        edges[n] = new set<Molecule*>();
+      }
+      edges[n]->insert(m);
+      rxns.push_back( new Reaction(n, m, "0","0", true) );
+    }
+    //if (!edges.count(rxns[i]->getProduct()))
+      //edges[rxns[i]->getProduct()] = new set<Molecule*>();
+
+/* This is already pre-done and the reactions are in the DB
+    // Create all other edges from product to other substrates
     Molecule *pm = rxns[i]->getProduct();
     if (!edges.count(pm))
       edges[pm] = new set<Molecule*>();
-
+    for (map<string,Molecule*>::iterator it=molecules->getBeginIterator(); it!=molecules->getEndIterator(); ++it) {
+      if (it->second->isDummy() && pm->generateID()!=it->first && pm->generateID().find(it->first) != string::npos) {
+        edges[pm]->insert(it->second);
+        cout << "Creating dummy edge from " << pm->generateID() << " -> " << it->second->generateID() << endl;
+        rxns.push_back( new Reaction(pm, it->second, "0", "0", true) );
+        // Insert into database
+        string cmd("INSERT IGNORE INTO reactions(substrate,product,organism) VALUES('");
+        cmd += pm->generateID() + "','" + it->second->generateID() + "','0');";
+        db->executeInsertQuery(cmd);
+      }
+    }
+*/
+  }
+}
+/*
     // Extract each substrate and product separately
     vector<Molecule*> substrates, products;
     string ps = rxns[i]->getSubstrate()->getMolID();
@@ -139,6 +171,7 @@ void Graph::createDummyReactions()
     } }
   }
 }
+*/
 
 vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
 {
@@ -146,11 +179,12 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
   setEnd(e);
   // Initialize distance and previous array
   // This is because molecule IDs dont start from zero
+  cout << "Initializing pathfinding\n";
   vector<Molecule*> Queue = mols;
   Molecule* u = Queue[0];
   for (unsigned int i=0; i<Queue.size(); ++i) {
     Queue[i]->setPrevious(NULL);
-    if (Queue[i]->getMolID() == getStart()) {
+    if (Queue[i]->generateID() == getStart()) {
       if (getMode() == FEWEST_NODES)
         Queue[i]->setDistance(Queue[i]->getCost());
       else if (getMode() == FEWEST_EDGES)
@@ -158,7 +192,8 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
     } else
       Queue[i]->setDistance(INT_MAX);
   }
- 
+
+  cout << "Conducting pathfinding\n"; 
   while (Queue.size()) {
     // Find smallest distance in queue and remove it
     int val = INT_MAX; int loc = 0;
@@ -176,13 +211,14 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
       cout << "ERROR: No path found\n";
       exit(1);
     }
-    if (u->getMolID() == getEnd()) {
+    if (u->search(getEnd())) {
       cout << "DISTANCE: " << u->getDistance() << endl;
       break;
     }
 
     // Update neighbors
     set<Molecule*>* V = getNeighbors(u);
+    cout << "Found " << V->size() << " neigh\n";
     if (V != NULL) {
       for (set<Molecule*>::iterator it=V->begin(); it!=V->end(); ++it) {
         int alt = 1;
@@ -201,25 +237,20 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
     } }
   }
   // Reassemble path
+  cout << "Reassembling path\n";
   Molecule *p = u;
   vector<Reaction*> result;
   while (p->getPrevious() != NULL) {
     Molecule *s = p->getPrevious();
+    cout << "Looking for inedges of " << s->generateID() << endl;
     if (s->isDummy()) {
-      vector<string> parents;
-      stringstream *ss = new stringstream( s->getMolID() ); 
-      string item;
-      while (getline(*ss, item, '+'))
-        if (item != getStart() && item != getEnd()) {
-          if (item.find("(n+1)") != string::npos) item = item.erase(item.find("(n+1)"),5);
-          if (item.find("(n+2)") != string::npos) item = item.erase(item.find("(n+2)"),5);
-          if (item.find(" ") != string::npos) item = item.substr(item.find(" ")+1);
-          if ( s->getMolID().find(getEnd()) != string::npos )
-            result.push_back( new Reaction( s, molecules->getMolecule(item), "0", "0", true) );
-          else
-            result.push_back( new Reaction( molecules->getMolecule(item), s, "0", "0", true) );
-        }
-      delete ss;
+     vector<string> parents;
+     for (unsigned int k=0; k<s->getMolIDs().size(); ++k) {
+       if (strcmp(s->getMolIDs().at(k).c_str(),getStart().c_str()) && s->search(getEnd())) // Contains end but not start
+         result.push_back(new Reaction(molecules->getMolecule(s->getMolIDs().at(k)), s, "0","0", true));
+       if (s->search(getEnd()))
+        result.push_back(new Reaction(s, molecules->getMolecule(getEnd()), "0", "0", true));
+      }
     }
     result.push_back(getReaction(s,p));
     p = s;
@@ -241,7 +272,7 @@ Reaction* Graph::getReaction(Molecule *sub, Molecule *prod)
       return rxns[i];
   }
   cout << "ERROR: No reaction found\n";
-  cout << "Substrate = " << sub->getMolID() << " Product = " << prod->getMolID() << endl;
+  cout << "Substrate = " << sub->generateID() << " Product = " << prod->generateID() << endl;
   return NULL;
 }
 
@@ -268,19 +299,19 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
     // Write out this reaction
     Molecule *s = res->at(i)->getSubstrate();
     Molecule *p = res->at(i)->getProduct();
-    if (s->getMolID()==getStart())
-      result += "\"" + s->getMolID() + "\" [fillcolor=\"chartreuse3\" label=\"" + s->getName() + "\"];\n";
+    if (!strcmp(s->generateID().c_str(),getStart().c_str()))
+      result += "\"" + s->generateID() + "\" [fillcolor=\"chartreuse3\" label=\"" + s->getName() + "\"];\n";
     else {
-      result += "\"" + s->getMolID() + "\" ";
+      result += "\"" + s->generateID() + "\" ";
       if (s->isDummy())
         result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
       else
         result += "[fillcolor=\"white\" label=\"" + s->getName() + "\"];\n";
     }
-    if (p->getMolID()==getEnd())
-      result += "\"" + p->getMolID() + "\" [fillcolor=\"coral2\" label=\"" + p->getName() + "\"];\n";
+    if (!strcmp(p->generateID().c_str(),getEnd().c_str()))
+      result += "\"" + p->generateID() + "\" [fillcolor=\"coral2\" label=\"" + p->getName() + "\"];\n";
     else {
-      result += "\"" + p->getMolID() + "\" ";
+      result += "\"" + p->generateID() + "\" ";
       if (p->isDummy())
         result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
       else
@@ -288,7 +319,7 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
     }
     if (res->at(i)->isDummy()) enz = "";
     else enz = res->at(i)->getEnzyme();
-    result += "\"" + s->getMolID() + "\" -> \"" + p->getMolID() + "\" [label=\"" + enz + "\" color=\"" + color + "\"];\n";
+    result += "\"" + s->generateID() + "\" -> \"" + p->generateID() + "\" [label=\"" + enz + "\" color=\"" + color + "\"];\n";
   }
 
   // Draw the legend as a subgraph with HTML markup (awks I know but whatever)
