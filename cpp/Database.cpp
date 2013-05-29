@@ -166,6 +166,30 @@ sql::ResultSet* Database::getReactions()
   return res;
 }
 
+string Database::getEnzymeName(const string id)
+{
+  sql::ResultSet *res;
+  vector<string> name;
+  try {
+    sql::Statement *stmt = getConnection()->createStatement();
+    string q = "SELECT name FROM enzymes WHERE uniprot='" + id + "';";
+    res = stmt->executeQuery(q);
+    while (res->next())
+      name.push_back(res->getString("name"));
+
+    delete res;
+    delete stmt;
+  } catch (sql::SQLException &e) {
+    cout << "Error querying database for enzyme name\n";
+    handleError(e);
+  }
+  if (name.size()!=1) {
+    cout << "Error! Multiple enzyme matches for ID " << id << endl;
+    exit(1);
+  }
+  return name[0];
+}
+
 vector<Molecule*> Database::getMolecules()
 {
   vector<Molecule*> molecules;

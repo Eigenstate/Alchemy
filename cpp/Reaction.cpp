@@ -17,6 +17,7 @@
  */
 #include <iostream>
 #include <list>
+#include <string.h>
 #include <stdlib.h>
 #include "Reaction.h"
 #include "Molecule.h"
@@ -28,7 +29,11 @@ Reaction::Reaction(Molecule *sub, Molecule *prod, const string& en, const string
         enzyme(en), 
         organism(org),
         dummy(d)
-        {}
+{
+  if (!strcmp(enzyme.c_str(),"0")) dummy=true;
+  if (!strcmp(enzyme.c_str(),"NULL")) dummy=true;
+  if (!strcmp(enzyme.c_str(), "")) dummy=true;
+}
 
 void Reaction::print()
 {

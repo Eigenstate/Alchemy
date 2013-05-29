@@ -213,12 +213,15 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
     }
     if (u->search(getEnd())) {
       cout << "DISTANCE: " << u->getDistance() << endl;
+      // Add final reaction
+      Molecule *s=molecules->getMolecule(getEnd());
+      rxns.push_back( new Reaction(u,s,"0","0",true) );
+      s->setPrevious(u); u=s;
       break;
     }
 
     // Update neighbors
     set<Molecule*>* V = getNeighbors(u);
-    cout << "Found " << V->size() << " neigh\n";
     if (V != NULL) {
       for (set<Molecule*>::iterator it=V->begin(); it!=V->end(); ++it) {
         int alt = 1;
@@ -226,7 +229,7 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
           alt = u->getDistance() + (*it)->getCost();
         else if (getMode() == FEWEST_EDGES) {
           if (u->isDummy()!=(*it)->isDummy()) // free transition costs 10
-            alt = u->getDistance() + 1000;
+            alt = u->getDistance() + 10;
           else
             alt = u->getDistance() + 1; // dist (u,v) = 1 for now (edge cost)
         }
@@ -242,7 +245,6 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
   vector<Reaction*> result;
   while (p->getPrevious() != NULL) {
     Molecule *s = p->getPrevious();
-    cout << "Looking for inedges of " << s->generateID() << endl;
     if (s->isDummy()) {
      vector<string> parents;
      for (unsigned int k=0; k<s->getMolIDs().size(); ++k) {
@@ -304,7 +306,8 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
     else {
       result += "\"" + s->generateID() + "\" ";
       if (s->isDummy())
-        result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
+        result += "[fillcolor=\"honeydew4\" label=\"" + p->generateID() + "\"];\n";
+        //result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
       else
         result += "[fillcolor=\"white\" label=\"" + s->getName() + "\"];\n";
     }
@@ -313,7 +316,8 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
     else {
       result += "\"" + p->generateID() + "\" ";
       if (p->isDummy())
-        result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
+        result += "[fillcolor=\"honeydew4\" label=\"" + p->generateID() + "\"];\n";
+        //result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
       else
         result += "[fillcolor=\"white\" label=\"" + p->getName() + "\"];\n";
     }
@@ -344,6 +348,15 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
     ++i;
   }
   result += "}\n"; // end legend subgraph
+
+  // Draw the enzyme legend as a subgraph with HTML markup
+  result += "subgraph cl2{\nlabel=\"Enzymes\";\nekey [label=<<table border=\"0\" cellpadding=\"2\" cellspacing=\"0\" cellborder=\"1\">\n";
+  for (int j=res->size()-1; j>=0; --j) {
+    if (res->at(j)->isDummy()) continue;
+    result += "<tr><td align=\"center\">"+ res->at(j)->getEnzyme() +"</td>";
+    result += "<td align=\"center\">"+db->getEnzymeName(res->at(j)->getEnzyme())+"</td></tr>\n";
+  }
+  result += "</table>>]\n}\n"; // end enzyme legend subgraph
 
   result += "}\n"; // end graphviz file
   return result.c_str();

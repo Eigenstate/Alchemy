@@ -18,9 +18,10 @@
 #include <utility> // for pair
 #include <sstream>
 #include <string>
+#include <stdexcept>
 #include "Molecule.h"
 #include "MoleculeSet.h"
-//#include <iostream>
+#include <iostream>
 using namespace std;
 
 void MoleculeSet::insertMolecule(Molecule* m)
@@ -35,7 +36,12 @@ map<string, Molecule*>::iterator MoleculeSet::getEndIterator() { return data.end
 Molecule* MoleculeSet::getMolecule(const string &name)
 {
   //cout << name << " -> " << processName(name) << endl;
+  try {
   return data.at( processName(name) );
+  } catch (const out_of_range &e) {
+    cout << "ERROR: Cannot find molecule " << processName(name) << endl;
+    exit(1);
+  }
 }
 
 // Puts a string into the internal format used in the map

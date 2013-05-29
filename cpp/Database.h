@@ -43,6 +43,7 @@ public:
   vector<Molecule*> getMolecules();
   void executeInsertQuery( string cmd );
   sql::ResultSet* getReactions();
+  string getEnzymeName(const string id);
 
 private:
   void handleError(const sql::SQLException &e);
