@@ -47,12 +47,12 @@ public:
   ~Graph();
   vector<Reaction*> shortestPath(const string &s, const string &e);
   Reaction* getReaction(Molecule *sub, Molecule *prod);
-  string getMolName(const string nid);
   void draw(vector<Reaction*>* res, const char *filename);
   void setStart(const string &s);
   void setEnd(const string &e);
 
 private:
+  void populateReactions();
   void createDummyReactions();
   set<Molecule*>* getNeighbors(Molecule *u);
   const vector<Reaction*>* getReactions();
@@ -61,6 +61,7 @@ private:
   graph_mode_t getMode();
   const string getStart();
   const string getEnd();
+  vector<string> Colors;
 };
 
 #endif

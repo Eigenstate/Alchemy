@@ -19,9 +19,10 @@
 #include <list>
 #include <stdlib.h>
 #include "Reaction.h"
+#include "Molecule.h"
 using namespace std;
 
-Reaction::Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &d)
+Reaction::Reaction(Molecule *sub, Molecule *prod, const string& en, const string &org, const bool &d)
       : substrate(sub), 
         product(prod), 
         enzyme(en), 
@@ -34,13 +35,13 @@ void Reaction::print()
   cout << substrate << " -> " << product << " by " << enzyme << endl;
 }
 
-string Reaction::getProduct()
+Molecule* Reaction::getProduct()
 { return product; }
 
 string Reaction::getEnzyme()
 { return enzyme; }
 
-string Reaction::getSubstrate()
+Molecule* Reaction::getSubstrate()
 { return substrate; }
 
 string Reaction::getOrganism()

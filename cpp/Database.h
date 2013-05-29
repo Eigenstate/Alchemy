@@ -39,10 +39,10 @@ class Database
 
 public:
   Database(const string &schem="alchemy");
-  vector<Reaction*> getReactions();
   vector<RawReaction*> getRawReactions();
   vector<Molecule*> getMolecules();
   void executeInsertQuery( string cmd );
+  sql::ResultSet* getReactions();
 
 private:
   void handleError(const sql::SQLException &e);

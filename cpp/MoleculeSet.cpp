@@ -16,34 +16,41 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <utility> // for pair
-#include <iostream>
 #include "Molecule.h"
 #include "MoleculeSet.h"
+//#include <iostream>
 using namespace std;
 
 void MoleculeSet::insertMolecule(Molecule* m)
 {
-  data.insert( pair<string,Molecule*>(m->getMolID(), m) );
+  string pname = processName( m->getMolID() );
+  data.insert( pair<string,Molecule*>(pname, m) );
 }
 
 Molecule* MoleculeSet::getMolecule(const string &name)
 {
+  //cout << name << " -> " << processName(name) << endl;
+  return data.at( processName(name) );
+}
+
+// Puts a string into the internal format used in the map
+// Removes (n+1), numbers, etc.
+const string MoleculeSet::processName(const string &name)
+{
   string pname = name;
-cout << "String: " << name << endl;
-  // Compound dummy molecule needs no processing
+  // Compound dummy reaction needs no processing
   int pluscount=0;
   for (unsigned int i=0; i<name.length(); ++i)
     if (name.at(i)=='+') ++pluscount; 
   if ( (pluscount>1)
-    || (pluscount==1 && name.find("(n+1)")==string::npos) ) {
-    return data.at(name);
+    || (pluscount==1 && name.find("(n+")==string::npos) ) {
+    return pname;
   }
-
   // Remove chain length specification
-  if (name.find("(")!=string::npos)
-    pname = name.substr(0,name.find("("));
+  if (pname.find("(")!=string::npos)
+    pname = pname.substr(0,pname.find("("));
   // Remove number of molecule specification
-  if (name.find(" ")!=string::npos)
-    pname = name.substr(name.find(" ")+1);
-  return data.at(pname);
+  if (pname.find(" ")!=string::npos)
+    pname = name.substr(pname.find(" ")+1);
+  return pname;
 }

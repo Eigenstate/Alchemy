@@ -21,21 +21,21 @@
 #include <string>
 #include <list>
 #include <vector>
-
 using namespace std;
+class Molecule;
 
 class Reaction {
-  string substrate;
-  string product;
+  Molecule* substrate;
+  Molecule* product;
   string enzyme;
   string organism;
   bool dummy;
 
 public:
-  Reaction(const string &sub, const string &prod, const std::string& en, const string &org, const bool &d=false);
+  Reaction(Molecule *sub, Molecule *prod, const string& en, const string &org, const bool &d=false);
   void print();
-  string getProduct();
-  string getSubstrate();
+  Molecule* getProduct();
+  Molecule* getSubstrate();
   string getEnzyme();
   string getOrganism();
   bool isDummy();

@@ -21,6 +21,7 @@
 #include <vector>
 #include <climits>
 #include <fstream>
+#include <cppconn/resultset.h>
 #include <graphviz/gvc.h>
 
 #include "Database.h"
@@ -34,14 +35,25 @@ using namespace std;
 Graph::Graph(const graph_mode_t m)
   : mode(m)
 {
-  // Read in database info
   db = new Database();
+  // Read in molecule data
   mols = db->getMolecules();
-  rxns = db->getReactions();
   molecules = new MoleculeSet();
   for (unsigned int i=0; i<mols.size(); ++i)
     molecules->insertMolecule( mols[i] );
+
+  // Read in reaction data
+  populateReactions();
   createDummyReactions();
+
+  // Construct list of available colors
+  Colors.push_back("cornflowerblue");
+  Colors.push_back("darkorchid1");
+  Colors.push_back("goldenrod4");
+  Colors.push_back("darkseagreen3");
+  Colors.push_back("dodgerblue4");
+  Colors.push_back("firebrick4");
+  Colors.push_back("darkslategray");
 }
 
 Graph::~Graph()
@@ -52,6 +64,19 @@ Graph::~Graph()
   }
 }
 
+void Graph::populateReactions()
+{
+  sql::ResultSet *res = db->getReactions();
+  while (res->next()) {
+    Molecule *sub = molecules->getMolecule( res->getString("substrate") );
+    Molecule *pro = molecules->getMolecule( res->getString("product") );
+    string enz = res->getString("enzyme");
+    string org = res->getString("organism");
+    rxns.push_back( new Reaction(sub, pro, enz, org, false) );
+  }
+  delete res;
+}
+
 const vector<Reaction*>* Graph::getReactions()
 { return &rxns; }
 
@@ -60,35 +85,37 @@ void Graph::createDummyReactions()
   unsigned int currsize = rxns.size(); // needed since we're adding more to rxns
   for (unsigned int i=0; i<currsize; ++i) { // can't parallelize since map is not thread safe
     // Create edge for this reaction
-    Molecule *m = molecules->getMolecule( rxns[i]->getSubstrate() );
+    Molecule *m = rxns[i]->getSubstrate();
     if (!edges.count(m))
       edges[m] = new set<Molecule*>();
-    edges[m]->insert(molecules->getMolecule( rxns[i]->getProduct() ));
+    edges[m]->insert(rxns[i]->getProduct());
 
-    Molecule *pm = molecules->getMolecule( rxns[i]->getProduct() );
+    Molecule *pm = rxns[i]->getProduct();
     if (!edges.count(pm))
       edges[pm] = new set<Molecule*>();
 
     // Extract each substrate and product separately
-    vector<string> substrates, products;
-    string ps = rxns[i]->getSubstrate();
+    vector<Molecule*> substrates, products;
+    string ps = rxns[i]->getSubstrate()->getMolID();
     if (ps.find("(n+1)")!=string::npos) ps = ps.erase(ps.find("(n+1)"),5);
+    if (ps.find("(n+2)")!=string::npos) ps = ps.erase(ps.find("(n+2)"),5);
     stringstream *ss = new stringstream( ps );
     string item;
     while (getline(*ss, item, '+')) {
       // Remove numbers, like "5 H2O" should just be "H2O"
       if (item.find(" ") != string::npos)
         item = item.substr(item.find(" ")+1);
-      substrates.push_back(item);
+      substrates.push_back(molecules->getMolecule(item));
     }
     delete ss;
-    ps = rxns[i]->getProduct();
+    ps = rxns[i]->getProduct()->getMolID();
     if (ps.find("(n+1)")!=string::npos) ps = ps.erase(ps.find("(n+1)"),5);
+    if (ps.find("(n+2)")!=string::npos) ps = ps.erase(ps.find("(n+2)"),5);
     ss = new stringstream( ps );
     while (getline(*ss, item, '+'))
       if (item.find(" ") != string::npos)
         item = item.substr(item.find(" ")+1);
-      products.push_back(item);
+      products.push_back(molecules->getMolecule(item));
     
     // Create dummy reaction substrate -> substrates and products -> product
     // Reactions still required for graph reassembly
@@ -96,15 +123,19 @@ void Graph::createDummyReactions()
     if (substrates.size() > 1) {
       for (unsigned int j=0; j<substrates.size(); ++j) {
         rxns.push_back( new Reaction(substrates[j], rxns[i]->getSubstrate(), "0", "0", true) );
-        Molecule *sm = molecules->getMolecule( substrates[j] );
+        rxns.push_back( new Reaction(rxns[i]->getSubstrate(), substrates[j], "0", "0", true) );
+        edges[rxns[i]->getSubstrate()]->insert(substrates[j]);
+        Molecule *sm = substrates[j];
         if (!edges.count(sm))
           edges[sm] = new set<Molecule*>();
-        edges[sm]->insert(molecules->getMolecule( rxns[i]->getSubstrate() ));
+        //edges[sm]->insert(rxns[i]->getSubstrate());
     } }
     if (products.size() > 1) {
       for (unsigned int j=0; j<products.size(); ++j) {
         rxns.push_back( new Reaction(rxns[i]->getProduct(), products[j], "0", "0", true) );
-        edges[pm]->insert(molecules->getMolecule( products[j] ));
+        rxns.push_back( new Reaction(products[j], rxns[i]->getProduct(), "0", "0", true) );
+        edges[rxns[i]->getProduct()]->insert(products[j]);
+        //edges[products[j]]->insert(rxns[i]->getProduct());
     } }
   }
 }
@@ -140,14 +171,15 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
     }
     u = Queue[loc];
     Queue.erase(Queue.begin()+loc);
-
     // Check for solved condition
     if (u->getDistance() == INT_MAX) {
       cout << "ERROR: No path found\n";
       exit(1);
     }
-    if (u->getMolID() == getEnd())
+    if (u->getMolID() == getEnd()) {
+      cout << "DISTANCE: " << u->getDistance() << endl;
       break;
+    }
 
     // Update neighbors
     set<Molecule*>* V = getNeighbors(u);
@@ -156,8 +188,12 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
         int alt = 1;
         if (getMode() == FEWEST_NODES)
           alt = u->getDistance() + (*it)->getCost();
-        else if (getMode() == FEWEST_EDGES)
-          alt = u->getDistance() + 1; // dist (u,v) = 1 for now (edge cost)
+        else if (getMode() == FEWEST_EDGES) {
+          if (u->isDummy()!=(*it)->isDummy()) // free transition costs 10
+            alt = u->getDistance() + 1000;
+          else
+            alt = u->getDistance() + 1; // dist (u,v) = 1 for now (edge cost)
+        }
        if (alt < (*it)->getDistance()) {
          (*it)->setDistance(alt);
           (*it)->setPrevious(u);
@@ -171,14 +207,17 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
     Molecule *s = p->getPrevious();
     if (s->isDummy()) {
       vector<string> parents;
-      stringstream *ss = new stringstream( s->getName() ); 
+      stringstream *ss = new stringstream( s->getMolID() ); 
       string item;
       while (getline(*ss, item, '+'))
         if (item != getStart() && item != getEnd()) {
-          if ( s->getName().find(getEnd()) != string::npos )
-            result.push_back( new Reaction( s->getName(), item, "0", "0", true) );
+          if (item.find("(n+1)") != string::npos) item = item.erase(item.find("(n+1)"),5);
+          if (item.find("(n+2)") != string::npos) item = item.erase(item.find("(n+2)"),5);
+          if (item.find(" ") != string::npos) item = item.substr(item.find(" ")+1);
+          if ( s->getMolID().find(getEnd()) != string::npos )
+            result.push_back( new Reaction( s, molecules->getMolecule(item), "0", "0", true) );
           else
-            result.push_back( new Reaction( item, s->getName(), "0", "0", true) );
+            result.push_back( new Reaction( molecules->getMolecule(item), s, "0", "0", true) );
         }
       delete ss;
     }
@@ -191,53 +230,18 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
 // Returns products of all reactions with u as substrate
 set<Molecule*>* Graph::getNeighbors(Molecule *u)
 {
-  /* This is slow and awful. Fixed now hopefully.
-  vector<Molecule*> result;
-  string search;
-  if (u->getStructureID() == "DUMMY") search = u->getName();
-  else search = u->getMolID();
-
-  for (unsigned int i=0; i<rxns.size(); ++i) {
-    if (rxns[i]->getSubstrate()== search ) {
-      string p = rxns[i]->getProduct();
-      string search;
-      for (unsigned int j=0; j<mols.size(); ++j) {
-        if (mols[j]->getMolID() == p || mols[j]->getName() == p) {
-          result.push_back(mols[j]);
-          break;
-        }
-      }
-    }
-  }
-  return result;
-  */
-  /* DEBUG PRINTING 
-  cout << " NEighbors of " << u->getName() << " or " << u->getMolID() << endl;
-  for (set<Molecule*>::iterator it=edges[u]->begin(); it!=edges[u]->end(); ++it) {
-    if ((*it)->isDummy())
-      cout << (*it)->getName() << endl;
-    else
-      cout << (*it)->getMolID() << endl;
-  }
-  exit(0);
-  */
   return edges[u];
 }
 
 Reaction* Graph::getReaction(Molecule *sub, Molecule *prod)
 {
-  // Define search terms based on if this is a dummy reaction
-  string ssubs, sprods;
-  if (sub->isDummy()) ssubs = sub->getName();
-  else ssubs = sub->getMolID();
-  if (prod->isDummy()) sprods = prod->getName();
-  else sprods = prod->getMolID();
-
   // Search
   for (unsigned int i=0; i<rxns.size(); ++i) {
-    if (rxns[i]->getSubstrate() == ssubs && rxns[i]->getProduct() == sprods)
+    if (rxns[i]->getSubstrate() == sub && rxns[i]->getProduct() == prod)
       return rxns[i];
   }
+  cout << "ERROR: No reaction found\n";
+  cout << "Substrate = " << sub->getMolID() << " Product = " << prod->getMolID() << endl;
   return NULL;
 }
 
@@ -246,45 +250,72 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
   string result = "digraph test {\n";
   result += "node [style=filled];\n";
   string sub, prod, enz;
+  map<string,string> orgColors;
 
   for (unsigned int i=0; i<res->size(); ++i) {
-    int pc=0;
-    for (unsigned int j=0; j<res->at(i)->getSubstrate().size(); ++j)
-      if (res->at(i)->getSubstrate()[j]=='+') ++pc;
-    if (pc>1 || (pc==1 && res->at(i)->getSubstrate().find("(n+1")==string::npos) )
-      result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"honeydew4\" label=\"\"];\n";
-    else {
-      if (res->at(i)->getSubstrate()==getStart())
-        result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"chartreuse3\" label=\"" + getMolName(res->at(i)->getSubstrate()) + "\"];\n";
-      else
-        result += "\"" + res->at(i)->getSubstrate() + "\" [fillcolor=\"white\" label=\"" + getMolName(res->at(i)->getSubstrate()) + "\"];\n";
+    // Print out reaction URL to screen
+    if (!res->at(i)->isDummy())
+      cout << "http://rest.kegg.jp/get/" << res->at(i)->getEnzyme() << endl;
+
+    // Get or define color for this organism
+    string color;
+    try { color = orgColors.at(res->at(i)->getOrganism()); }
+    catch (const out_of_range &e) {
+      orgColors.insert(pair<string,string>(res->at(i)->getOrganism(), Colors.back()));
+      color = Colors.back();
+      Colors.pop_back();
     }
-    pc=0;
-    for (unsigned int j=0; j<res->at(i)->getProduct().size(); ++j)
-      if (res->at(i)->getProduct()[j]=='+') ++pc;
-    if(pc>1 || (pc==1 &&res->at(i)->getProduct().find("(n+1)")==string::npos) )
-      result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"honeydew4\" label=\"\"];\n";
+    // Write out this reaction
+    Molecule *s = res->at(i)->getSubstrate();
+    Molecule *p = res->at(i)->getProduct();
+    if (s->getMolID()==getStart())
+      result += "\"" + s->getMolID() + "\" [fillcolor=\"chartreuse3\" label=\"" + s->getName() + "\"];\n";
     else {
-      if (res->at(i)->getProduct()==getEnd())
-        result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"coral2\" label=\"" + getMolName(res->at(i)->getProduct()) + "\"];\n";
+      result += "\"" + s->getMolID() + "\" ";
+      if (s->isDummy())
+        result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
       else
-        result += "\"" + res->at(i)->getProduct() + "\" [fillcolor=\"white\" label=\"" + getMolName(res->at(i)->getProduct()) + "\"];\n";
+        result += "[fillcolor=\"white\" label=\"" + s->getName() + "\"];\n";
     }
-    
+    if (p->getMolID()==getEnd())
+      result += "\"" + p->getMolID() + "\" [fillcolor=\"coral2\" label=\"" + p->getName() + "\"];\n";
+    else {
+      result += "\"" + p->getMolID() + "\" ";
+      if (p->isDummy())
+        result += "[fillcolor=\"honeydew4\" label=\"\"];\n";
+      else
+        result += "[fillcolor=\"white\" label=\"" + p->getName() + "\"];\n";
+    }
     if (res->at(i)->isDummy()) enz = "";
     else enz = res->at(i)->getEnzyme();
-    result += "\"" + res->at(i)->getSubstrate() + "\" -> \"" + res->at(i)->getProduct() + "\" [label=\"" + enz + "\"];\n";
+    result += "\"" + s->getMolID() + "\" -> \"" + p->getMolID() + "\" [label=\"" + enz + "\" color=\"" + color + "\"];\n";
   }
-  result += "}\n";
-  return result.c_str();
-}
 
-string Graph::getMolName(const string nid)
-{
-  for (unsigned int i=0; i<mols.size(); ++i) {
-    if (mols[i]->getMolID() == nid) return mols[i]->getName();
+  // Draw the legend as a subgraph with HTML markup (awks I know but whatever)
+  result += "rankdir=LR\nnode [shape=plaintext fillcolor=\"white\"]\n";
+  result += "subgraph cl1 {\nlabel=\"Legend\";\nkey [label=<<table border=\"0\" cellpadding=\"2\" cellspacing=\"0\" cellborder=\"0\">\n";
+  int i=0;
+  for (map<string,string>::iterator it=orgColors.begin(); it!=orgColors.end(); ++it) {
+    result += "<tr><td align=\"right\" port=\"i"+to_string(i)+"\">" + it->first + "</td></tr>\n";
+    ++i;
   }
-  return "";
+  result += "</table>>]\n";
+  result += "key2 [label=<<table border=\"0\" cellpadding=\"2\" cellspacing=\"0\" cellborder=\"0\">\n";
+  i=0;
+  for (map<string,string>::iterator it=orgColors.begin(); it!=orgColors.end(); ++it) {
+    result += "<tr><td port=\"i"+to_string(i)+"\">&nbsp;</td></tr>\n"; 
+    ++i;
+  }
+  result += "</table>>]";
+  i=0;
+  for (map<string,string>::iterator it=orgColors.begin(); it!=orgColors.end(); ++it) {
+    result += "key:i"+to_string(i)+":e -> key2:i"+to_string(i)+":w [color=\"" + it->second + "\"]\n";
+    ++i;
+  }
+  result += "}\n"; // end legend subgraph
+
+  result += "}\n"; // end graphviz file
+  return result.c_str();
 }
 
 void Graph::render(string &temp, const char *filename)

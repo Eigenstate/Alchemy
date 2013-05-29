@@ -85,6 +85,9 @@ sub addEntry {
     if (@substrates > 0) { $self->addLigand(pop @substrates); }
     if (@products > 0) { $self->addLigand(pop @products); }
   }
+  # Remove spaces such as "5 H20" -> H20
+  if ( index ($s, " ") != -1) { $s = substr( $s, index($s, " ")+1 ); }
+  if ( index ($p, " ") != -1) { $p = substr( $p, index($p, " ")+1 ); }
   # Add substrate/product compund pairs to the database
   $self->addLigand( $s );
   $self->addLigand( $p );
@@ -111,15 +114,15 @@ sub addLigand {
     if ($rr =~ m/NAME        (.*)\n/) {
       $name = $1;
       chop $name if ( substr $name, -1 eq ";" );
-      $name = quotemeta $name;
     } else { 
       if ($rr =~ m/ENTRY       (.*?)\s/) {
         $name = $1;
-        $name = quotemeta $name;
       } else {die "Error finding ligand $ligand\n"; }
     }
   }
   else { $name= "DUMMY"; }
+
+  $name = quotemeta $name;
   my $idx = $self->executeInsertQuery("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('$ligand','$name');","molecules");
   return $idx;
 }
@@ -169,7 +172,8 @@ sub removeDuplicates
         print "Handling duplicates containing @{$ligands[$i]}[0]\n";
         $self->{dbh}->do("DELETE FROM molecules WHERE kegg_id like '%@{$ligands[$i]}[0]%';") 
           or die "Database error: $DBI::errstr\nDeletion was %@{$ligands[$i]}[0]%\n";
-        $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('@{$ligands[$i]}[0]','@{$ligands[$i]}[1]');")
+          my $qm = quotemeta @{$ligands[$i]}[1];
+        $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('@{$ligands[$i]}[0]','$qm');")
           or die "Database error: $DBI::errstr\nQuery was '@{$ligands[$i]}[0]','@{$ligands[$i]}[1]'\n";
         ++$errcount;
         last;
@@ -205,12 +209,26 @@ sub createDummies {
   foreach my $rxn(@rxns) {
     my $sub = @{$rxn}[0];
     my $prod = @{$rxn}[1];
-    if (index($sub,"(n+1)")==-1 and index($sub,"+")!=-1) {
+   
+    # Check if the substrate needs a dummy 
+    my $pc=0;
+    for (my $i=0; $i<length $sub; ++$i) {
+      if (substr($sub,$i,1) eq "+") { ++$pc; }
+    }
+    if ( ($pc>1) || 
+         ($pc==1 and index($sub,"(n+")==-1) ) {
       $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('$sub','DUMMY')")
         or die "Database error: $DBI::errstr\nInsert was $sub\n";
       ++$count;
     }
-    if (index($prod,"(n+1)")==-1 and index($prod,"+")!=-1) {
+
+    # Now check if the product needs a dummy
+    $pc=0;
+    for (my $i=0; $i<length $prod; ++$i) {
+      if (substr($prod,$i,1) eq "+") { ++$pc; }
+    }
+    if ( ($pc>1) || 
+         ($pc==1 and index($prod,"(n+")==-1) ) {
       $self->{dbh}->do("INSERT IGNORE INTO molecules (kegg_id,name) VALUES('$prod','DUMMY')")
         or die "Database error: $DBI::errstr\nInsert was $prod\n";
       ++$count;

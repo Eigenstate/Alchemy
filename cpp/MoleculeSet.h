@@ -32,6 +32,8 @@ class MoleculeSet
 public:
   void insertMolecule(Molecule* m);
   Molecule* getMolecule(const string &name);
+private:
+  const string processName(const string &name);
 };
 
 #endif

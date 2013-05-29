@@ -152,26 +152,18 @@ void Database::executeInsertQuery( string cmd )
   }
 }
 
-vector<Reaction*> Database::getReactions()
+sql::ResultSet* Database::getReactions()
 {
-  vector<Reaction*> results;
+  sql::ResultSet *res;
   try {
     sql::Statement *stmt = getConnection()->createStatement();
-    sql::ResultSet *res = stmt->executeQuery("SELECT enzyme,substrate,product,organism FROM reactions;");
-    while (res->next()) {
-    string sub = res->getString("substrate");
-    string pro = res->getString("product");
-    string enz = res->getString("enzyme");
-    string org = res->getString("organism");
-      results.push_back( new Reaction(sub, pro, enz, org, false) );
-    }
-    delete res;
+    res = stmt->executeQuery("SELECT enzyme,substrate,product,organism FROM reactions;");
     delete stmt;
   } catch (sql::SQLException &e) {
     cout << "Error querying database for reactions\n";
     handleError(e);
   }
-  return results;
+  return res;
 }
 
 vector<Molecule*> Database::getMolecules()
