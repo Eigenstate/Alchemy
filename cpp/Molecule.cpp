@@ -18,7 +18,6 @@
 #include <string>
 #include <sstream>
 #include <climits>
-#include <string.h>
 #include "Molecule.h"
 
 using namespace std;
@@ -27,7 +26,7 @@ Molecule::Molecule(string ids, string name)
     prev(NULL),
     ename(name)
 {
-  if (!strcmp(name.c_str(),"DUMMY")) {
+  if (name == "DUMMY") {
     if (ids.find("(n+1)") != string::npos) ids = ids.erase(ids.find("(n+1)"),5);
     if (ids.find("(n+2)") != string::npos) ids = ids.erase(ids.find("(n+2)"),5);
     stringstream *ss = new stringstream( ids ); 
@@ -44,7 +43,7 @@ Molecule::Molecule(string ids, string name)
 bool Molecule::search(const string id)
 {
   for (unsigned int i=0; i<getMolIDs().size(); ++i)
-    if (!strcmp(getMolIDs().at(i).c_str(),id.c_str())) return true;
+    if (getMolIDs().at(i) == id) return true;
   return false;
 }
 
@@ -72,4 +71,4 @@ Molecule* Molecule::getPrevious() { return prev; }
 
 void Molecule::setDistance(int d) { distance = d; }
 void Molecule::setPrevious(Molecule *p) { prev = p; }
-bool Molecule::isDummy() { return (!strcmp(getName().c_str(),"DUMMY")); }
+bool Molecule::isDummy() { return (getName()=="DUMMY"); }

@@ -37,7 +37,8 @@ class Graph
   vector<Reaction*> rxns;
   vector<Molecule*> mols;
   MoleculeSet* molecules;
-  map<Molecule*, set<Molecule*>*> edges;
+  map<Molecule*, set<Molecule*>*> rxnedges;
+  map<Molecule*, set<Molecule*>*> dummyedges;
   graph_mode_t mode;
   string start;
   string end;
@@ -54,7 +55,7 @@ public:
 private:
   void populateReactions();
   void createDummyReactions();
-  set<Molecule*>* getNeighbors(Molecule *u);
+  set<Molecule*>* getNeighbors(set<Molecule*>* V, Molecule *u);
   const vector<Reaction*>* getReactions();
   const char* getGraphviz(vector<Reaction*>* res);
   void render(string &temp, const char *filename);

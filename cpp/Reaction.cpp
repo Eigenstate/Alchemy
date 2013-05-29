@@ -30,9 +30,7 @@ Reaction::Reaction(Molecule *sub, Molecule *prod, const string& en, const string
         organism(org),
         dummy(d)
 {
-  if (!strcmp(enzyme.c_str(),"0")) dummy=true;
-  if (!strcmp(enzyme.c_str(),"NULL")) dummy=true;
-  if (!strcmp(enzyme.c_str(), "")) dummy=true;
+  if (enzyme=="0" || enzyme=="NULL" || enzyme=="") dummy=true;
 }
 
 void Reaction::print()

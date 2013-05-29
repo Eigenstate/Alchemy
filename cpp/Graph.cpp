@@ -15,8 +15,7 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <cstring>
-#include <cstdio>
+#include <string>
 #include <sstream>
 #include <vector>
 #include <climits>
@@ -89,18 +88,23 @@ void Graph::createDummyReactions()
   for (unsigned int i=0; i<currsize; ++i) { // can't parallelize since map is not thread safe
     // Create edge for this reaction from substrate to product
     Molecule *m = rxns[i]->getSubstrate();
-    if (!edges.count(m)) {
-      edges[m] = new set<Molecule*>();
+    if (getReaction(m, rxns[i]->getProduct())->isDummy()) {
+      if (!dummyedges.count(m))
+        dummyedges[m] = new set<Molecule*>();
+      dummyedges[m]->insert(rxns[i]->getProduct());
+    } else {
+      if (!rxnedges.count(m)) 
+        rxnedges[m] = new set<Molecule*>();
+      rxnedges[m]->insert(rxns[i]->getProduct());
     }
-    edges[m]->insert(rxns[i]->getProduct());
 
     // Create dummy INEDGES to the reaction nodes
     for (unsigned int j=0; j<m->getMolIDs().size(); ++j) {
       Molecule *n = molecules->getMolecule( m->getMolIDs().at(j) );
-      if (!edges.count(n)) {
-        edges[n] = new set<Molecule*>();
+      if (!dummyedges.count(n)) {
+        dummyedges[n] = new set<Molecule*>();
       }
-      edges[n]->insert(m);
+      dummyedges[n]->insert(m);
       rxns.push_back( new Reaction(n, m, "0","0", true) );
     }
     //if (!edges.count(rxns[i]->getProduct()))
@@ -182,6 +186,7 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
   cout << "Initializing pathfinding\n";
   vector<Molecule*> Queue = mols;
   Molecule* u = Queue[0];
+   Molecule *endm=molecules->getMolecule(getEnd());
   for (unsigned int i=0; i<Queue.size(); ++i) {
     Queue[i]->setPrevious(NULL);
     if (Queue[i]->generateID() == getStart()) {
@@ -211,17 +216,17 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
       cout << "ERROR: No path found\n";
       exit(1);
     }
-    if (u->search(getEnd())) {
-      cout << "DISTANCE: " << u->getDistance() << endl;
+    if (u->search(getEnd()) && !getReaction(u->getPrevious(),u)->isDummy()) { // final reaction can't be a dummy
+      cout << "DISTANCE SCORE: " << u->getDistance() << endl;
       // Add final reaction
-      Molecule *s=molecules->getMolecule(getEnd());
-      rxns.push_back( new Reaction(u,s,"0","0",true) );
-      s->setPrevious(u); u=s;
+      rxns.push_back( new Reaction(u,endm,"0","0",true) );
+      endm->setPrevious(u); u=endm;
       break;
     }
 
     // Update neighbors
-    set<Molecule*>* V = getNeighbors(u);
+    set<Molecule*>* V;
+    V = getNeighbors(V,u);
     if (V != NULL) {
       for (set<Molecule*>::iterator it=V->begin(); it!=V->end(); ++it) {
         int alt = 1;
@@ -238,6 +243,7 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
           (*it)->setPrevious(u);
         }
     } }
+    delete V; V=NULL;
   }
   // Reassemble path
   cout << "Reassembling path\n";
@@ -245,14 +251,13 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
   vector<Reaction*> result;
   while (p->getPrevious() != NULL) {
     Molecule *s = p->getPrevious();
+    cout << s->generateID() << " -> " << p->generateID() << endl;
     if (s->isDummy()) {
      vector<string> parents;
-     for (unsigned int k=0; k<s->getMolIDs().size(); ++k) {
-       if (strcmp(s->getMolIDs().at(k).c_str(),getStart().c_str()) && s->search(getEnd())) // Contains end but not start
-         result.push_back(new Reaction(molecules->getMolecule(s->getMolIDs().at(k)), s, "0","0", true));
-       if (s->search(getEnd()))
-        result.push_back(new Reaction(s, molecules->getMolecule(getEnd()), "0", "0", true));
-      }
+     for (unsigned int k=0; k<s->getMolIDs().size(); ++k)
+       if (s->getMolIDs().at(k) != getStart() && s->getMolIDs().at(k) != getEnd()) // don't draw extra line to start or from end
+       result.push_back(new Reaction(molecules->getMolecule(s->getMolIDs().at(k)), s, "0","0", true));
+       //if (strcmp(s->getMolIDs().at(k).c_str(),getStart().c_str()) && s->search(getEnd())) // Contains end but not start
     }
     result.push_back(getReaction(s,p));
     p = s;
@@ -261,9 +266,19 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
 }
 
 // Returns products of all reactions with u as substrate
-set<Molecule*>* Graph::getNeighbors(Molecule *u)
+// If previous reaction was a dummy, only return non-dummy edges
+// Don't forget to delete memory allocated for V
+set<Molecule*>* Graph::getNeighbors(set<Molecule*>* V, Molecule *u)
 {
-  return edges[u];
+  if (rxnedges.count(u))
+    V = new set<Molecule*>(*(rxnedges[u]));
+  else
+    V = new set<Molecule*>();
+
+  if (dummyedges.count(u) && 
+      (!u->getPrevious() || !getReaction(u->getPrevious(), u)->isDummy()) )
+    V->insert(dummyedges[u]->begin(),dummyedges[u]->end());
+  return V;
 }
 
 Reaction* Graph::getReaction(Molecule *sub, Molecule *prod)
@@ -273,8 +288,9 @@ Reaction* Graph::getReaction(Molecule *sub, Molecule *prod)
     if (rxns[i]->getSubstrate() == sub && rxns[i]->getProduct() == prod)
       return rxns[i];
   }
-  cout << "ERROR: No reaction found\n";
+  cout << "ERROR: No reaction found." << endl;
   cout << "Substrate = " << sub->generateID() << " Product = " << prod->generateID() << endl;
+  exit(1);
   return NULL;
 }
 
@@ -301,7 +317,7 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
     // Write out this reaction
     Molecule *s = res->at(i)->getSubstrate();
     Molecule *p = res->at(i)->getProduct();
-    if (!strcmp(s->generateID().c_str(),getStart().c_str()))
+    if (s->generateID()==getStart())
       result += "\"" + s->generateID() + "\" [fillcolor=\"chartreuse3\" label=\"" + s->getName() + "\"];\n";
     else {
       result += "\"" + s->generateID() + "\" ";
@@ -311,7 +327,7 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
       else
         result += "[fillcolor=\"white\" label=\"" + s->getName() + "\"];\n";
     }
-    if (!strcmp(p->generateID().c_str(),getEnd().c_str()))
+    if (p->generateID()==getEnd())
       result += "\"" + p->generateID() + "\" [fillcolor=\"coral2\" label=\"" + p->getName() + "\"];\n";
     else {
       result += "\"" + p->generateID() + "\" ";
