@@ -34,6 +34,7 @@ public:
   Molecule* getMolecule(const string &name);
   map<string, Molecule*>::iterator getBeginIterator();
   map<string, Molecule*>::iterator getEndIterator();
+  string generateName(const string &ids);
 private:
   const string processName(const string &name);
 };

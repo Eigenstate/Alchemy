@@ -57,8 +57,8 @@ private:
   void createDummyReactions();
   set<Molecule*>* getNeighbors(set<Molecule*>* V, Molecule *u);
   const vector<Reaction*>* getReactions();
-  const char* getGraphviz(vector<Reaction*>* res);
-  void render(string &temp, const char *filename);
+  string getGraphviz(vector<Reaction*>* res);
+  void render(string temp, const char *filename);
   graph_mode_t getMode();
   const string getStart();
   const string getEnd();

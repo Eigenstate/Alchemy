@@ -36,16 +36,13 @@ Graph::Graph(const graph_mode_t m)
 {
    db = new Database();
 
-  cout << "Reading in molecules\n";
   mols = db->getMolecules();
   molecules = new MoleculeSet();
   for (unsigned int i=0; i<mols.size(); ++i)
     molecules->insertMolecule( mols[i] );
 
   // Read in reaction data
-  cout << "Populating reactions\n";
   populateReactions();
-  cout << "Creating dummy reactions\n";
   createDummyReactions();
 
   // Construct list of available colors
@@ -183,7 +180,6 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
   setEnd(e);
   // Initialize distance and previous array
   // This is because molecule IDs dont start from zero
-  cout << "Initializing pathfinding\n";
   vector<Molecule*> Queue = mols;
   Molecule* u = Queue[0];
    Molecule *endm=molecules->getMolecule(getEnd());
@@ -198,7 +194,6 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
       Queue[i]->setDistance(INT_MAX);
   }
 
-  cout << "Conducting pathfinding\n"; 
   while (Queue.size()) {
     // Find smallest distance in queue and remove it
     int val = INT_MAX; int loc = 0;
@@ -246,21 +241,30 @@ vector<Reaction*> Graph::shortestPath(const string &s, const string &e)
     delete V; V=NULL;
   }
   // Reassemble path
-  cout << "Reassembling path\n";
   Molecule *p = u;
   vector<Reaction*> result;
   while (p->getPrevious() != NULL) {
     Molecule *s = p->getPrevious();
-    cout << s->generateID() << " -> " << p->generateID() << endl;
     if (s->isDummy()) {
      vector<string> parents;
      for (unsigned int k=0; k<s->getMolIDs().size(); ++k)
-       if (s->getMolIDs().at(k) != getStart() && s->getMolIDs().at(k) != getEnd()) // don't draw extra line to start or from end
-       result.push_back(new Reaction(molecules->getMolecule(s->getMolIDs().at(k)), s, "0","0", true));
+       if (s->getMolIDs().at(k) != getStart() && s->getMolIDs().at(k) != getEnd()){ // don't draw extra line to start or from end
+        if (s->search(getEnd()))
+          result.push_back(new Reaction(s, molecules->getMolecule(s->getMolIDs().at(k)), "0","0", true));
+        else 
+          result.push_back(new Reaction(molecules->getMolecule(s->getMolIDs().at(k)), s, "0","0", true));
        //if (strcmp(s->getMolIDs().at(k).c_str(),getStart().c_str()) && s->search(getEnd())) // Contains end but not start
+      }
     }
     result.push_back(getReaction(s,p));
     p = s;
+  }
+  // Print path
+  for (unsigned int i=result.size()-1; i>0; --i) {
+    if (result[i]->isDummy()) continue;
+    if (result[i]->getSubstrate()->isDummy() || result[i]->getProduct()->isDummy())
+      cout << molecules->generateName(result[i]->getSubstrate()->generateID()) << "->" <<
+              molecules->generateName(result[i]->getProduct()->generateID()) << " by " << result[i]->getEnzyme() << endl;
   }
   return result;
 }
@@ -294,15 +298,16 @@ Reaction* Graph::getReaction(Molecule *sub, Molecule *prod)
   return NULL;
 }
 
-const char* Graph::getGraphviz(vector<Reaction*>* res)
+string Graph::getGraphviz(vector<Reaction*>* res)
 {
   string result = "digraph test {\n";
   result += "node [style=filled];\n";
   string sub, prod, enz;
   map<string,string> orgColors;
 
+  // Print out reaction URLs to screen
+  cout << "\nENZYMES NEEDED:\n";
   for (unsigned int i=0; i<res->size(); ++i) {
-    // Print out reaction URL to screen
     if (!res->at(i)->isDummy())
       cout << "http://rest.kegg.jp/get/" << res->at(i)->getEnzyme() << endl;
 
@@ -375,10 +380,10 @@ const char* Graph::getGraphviz(vector<Reaction*>* res)
   result += "</table>>]\n}\n"; // end enzyme legend subgraph
 
   result += "}\n"; // end graphviz file
-  return result.c_str();
+  return result;
 }
 
-void Graph::render(string &temp, const char *filename)
+void Graph::render(string temp, const char *filename)
 {
   GVC_t *gvc = gvContext();
   Agraph_t *G = agmemread(const_cast<char*>(temp.c_str()));

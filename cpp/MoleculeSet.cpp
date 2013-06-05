@@ -35,13 +35,27 @@ map<string, Molecule*>::iterator MoleculeSet::getEndIterator() { return data.end
 
 Molecule* MoleculeSet::getMolecule(const string &name)
 {
-  //cout << name << " -> " << processName(name) << endl;
   try {
   return data.at( processName(name) );
   } catch (const out_of_range &e) {
     cout << "ERROR: Cannot find molecule " << processName(name) << endl;
     exit(1);
   }
+}
+
+string MoleculeSet::generateName(const string &ids)
+{
+  vector<string> l;
+  try { 
+    l = data.at(ids)->getMolIDs(); 
+  } catch (const out_of_range &e) {
+    cout << "ERROR: Cannot find molecule " << ids << endl;
+    exit(1);
+  }
+  string names="";
+  for (unsigned int i=0; i<l.size(); ++i)
+    names += getMolecule(l[i])->getName() + " + ";
+  return names.erase(names.length()-3);
 }
 
 // Puts a string into the internal format used in the map

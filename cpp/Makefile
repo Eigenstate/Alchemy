@@ -16,7 +16,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 CC = g++
-CFLAGS= -O3 -Wall -ggdb -std=c++11
+CFLAGS= -O3 -Wall -std=c++11
 LINKS= -lmysqlcppconn -lgvc -lgraph -lcdt
 
 HEADERS =  Database.h Reaction.h RawReaction.h Graph.h Molecule.h MoleculeSet.h
